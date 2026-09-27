@@ -98,6 +98,7 @@ emit_agent() {
   desc="$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$src")"
   omp_model="$(awk '/^model:/{sub(/^model: */,""); print; exit}' "$src")"
   tools_line="$(awk '/^tools:/{sub(/^tools: */,""); print; exit}' "$src")"
+  spawns="$(awk '/^spawns:/{sub(/^spawns: */,""); print; exit}' "$src")"
   body_start="$(awk 'NR>1 && /^---$/{print NR+1; exit}' "$src")"
 
   if [ -z "$name" ] || [ -z "$tools_line" ] || [ -z "$body_start" ]; then
@@ -122,6 +123,9 @@ emit_agent() {
   case ",$granted," in *,lsp,*) warn "$name: OMP tool 'lsp' has no Claude Code equivalent; dropped" ;; esac
   if [ -n "$omp_model" ] && [ "$MODEL" = "inherit" ]; then
     warn "$name: dropped OMP model pin '$omp_model' — emitted 'model: inherit'. Pass --model to pin explicitly."
+  fi
+  if [ -n "$spawns" ]; then
+    warn "$name: dropped spawns='$spawns' — Claude Code has no nested-spawn equivalent; this agent loses its tier-2 delegation"
   fi
   return 0
 }

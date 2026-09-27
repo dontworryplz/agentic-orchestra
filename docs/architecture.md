@@ -145,3 +145,49 @@ Two rules bound the conversion:
    given in the OpenCode output is written as `false`. Otherwise a discovery
    agent would gain write authority from the runtime default — a silent
    privilege escalation.
+
+## Delegation tiers
+
+`spawns` is a capability grant, not a hint. An agent without the key cannot
+spawn at all; OMP reports `none (spawns disabled for this agent)`. So who may
+delegate is a design decision recorded in the agent files.
+
+```
+tier 0   root session (Sol)              interprets, decomposes, integrates
+              │  one hop
+tier 1   luna-coordinator   → spawns   [luna-explorer, luna-researcher,
+              │                             space-bunny-reviewer]
+         luna-integrator    → spawns   [luna-worker, space-bunny-worker,
+              │                             antigravity-sonnet-worker,
+              │                             luna-reviewer,
+              │                             space-bunny-reviewer]
+         luna-tester        → spawns   [luna-explorer, luna-researcher]
+              │  one hop
+tier 2   leaves (10 roles)              no spawns key
+```
+
+Two constraints make the three tier-1 grants defensible:
+
+- **`luna-tester` is the only tier-1 agent that writes**, and both of its
+  children are read-only, so a fan-out cannot create a write conflict.
+- **No reviewer spawns.** A reviewer that delegates is no longer an independent
+  gate.
+
+`luna-coordinator` and `luna-integrator` are new in 0.3.0. Before them the
+package had ten specialists and no orchestrator: the routing table in
+`sol-luna-orchestrator` referred to an "integration owner" role that nothing
+defined, and a question too wide for one explorer's context had no answer
+short of a partial one reported as complete.
+
+The graph is asserted, not assumed. `tools/check-spawn-graph.mjs` fails on an
+unknown target, a self-reference, a cycle, a third level, or a conversion that
+drops `spawns` without saying so. It found two of those while being written: a
+depth limit that was one too permissive, and a check that read stderr from a
+child process which had none to give.
+
+### Cost
+
+`task.maxConcurrency` is 4 per level. The tree is capped at
+`1 + 1 + 3 = 5` live agents, two tiers deep. A third tier would be
+`1 + 1 + 3 + 9`: nine times the leaf cost for coverage that one more graph query
+usually provides.

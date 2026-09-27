@@ -95,6 +95,7 @@ convert_agent() {
   desc="$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$src")"
   model="$(awk '/^model:/{sub(/^model: */,""); print; exit}' "$src")"
   tools_line="$(awk '/^tools:/{sub(/^tools: */,""); print; exit}' "$src")"
+  spawns="$(awk '/^spawns:/{sub(/^spawns: */,""); print; exit}' "$src")"
   body_start="$(awk 'NR>1 && /^---$/{print NR+1; exit}' "$src")"
 
   if [ -z "$name" ] || [ -z "$tools_line" ]; then
@@ -141,6 +142,7 @@ emit_agent() {
   desc="$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$src")"
   model="$(awk '/^model:/{sub(/^model: */,""); print; exit}' "$src")"
   tools_line="$(awk '/^tools:/{sub(/^tools: */,""); print; exit}' "$src")"
+  spawns="$(awk '/^spawns:/{sub(/^spawns: */,""); print; exit}' "$src")"
   body_start="$(awk 'NR>1 && /^---$/{print NR+1; exit}' "$src")"
 
   granted="$(printf '%s' "$tools_line" | tr -d ' ')"

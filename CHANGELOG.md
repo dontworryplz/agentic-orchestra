@@ -9,6 +9,53 @@ backward compatible".
 
 ### Added
 
+- **Nested delegation.** Two new tier-1 agents carry a `spawns` whitelist, so an
+  agent can now delegate to agents that report upward:
+  - `luna-coordinator` — read-only. Splits one question too wide for a single
+    explorer's context into at most three non-overlapping sub-questions and
+    synthesizes the answers. It keeps the synthesis; relaying a child's
+    conclusion instead of its evidence would add a hop and lose the thread.
+  - `luna-integrator` — the seam owner the routing table had been referring to
+    but nothing defined. Fixes the interface and the file partition *before*
+    fanning out, integrates in dependency order, runs the check that exercises
+    the seam, then hands the combined diff to a reviewer that did not write it.
+- `luna-tester` gains a read-only `spawns` whitelist. It is the only tier-1
+  agent that writes, and both children are read-only, so a fan-out cannot create
+  a write conflict.
+- `tools/check-spawn-graph.mjs`, wired into `verify.sh` as check 16. OMP's
+  `spawns` failure mode is never a crash: a malformed graph is either an agent
+  that silently cannot delegate, or a cycle that recurses until the budget is
+  gone. The check fails on an unknown target, a self-reference, a cycle, a third
+  level, or a conversion that drops `spawns` without reporting it.
+
+### Changed
+
+- The routing table's "integration owner" is now a real role. Before this,
+  `sol-luna-orchestrator` told Sol to serialize shared mutation through an
+  integration owner that did not exist as an agent.
+- `sol-luna-orchestrator` gained the nesting policy: the tier table, why the
+  leaves stay leaves (a worker that spawns destroys the file partition; a
+  reviewer that spawns is no longer an independent gate), the cost ceiling, and
+  the four conditions under which a leaf may be promoted.
+- Conversion drops `spawns` for OpenCode and Claude Code and reports it on
+  stderr. Neither runtime can honour a nested-spawn grant, and silently emitting
+  or silently dropping it would both mislead.
+
+### Fixed
+
+- The install smoke test hardcoded 10 agents and 9 skills, so adding two agents
+  produced seven unrelated-looking failures. The expected counts now come from
+  the repository.
+- Check 10 lost a real assertion to a `grep -q` plus `pipefail` interaction:
+  `grep -q` closes the pipe on first match, SIGPIPEs the writer, and a successful
+  match reads as a failed check. It only surfaced once the warning output grew
+  past the pipe buffer, which is why it looked like a flaky regression rather
+  than a broken test.
+- `MAX_DEPTH` in the spawn-graph check was one too permissive (2 instead of 1),
+  which let a leaf grow a chain and pass. A mutation test caught it.
+
+### Added
+
 - `npx skills add dontworryplz/agentic-orchestra-` works. The repository already
   followed the convention; verified against both the local path and the GitHub
   URL. No extra configuration.

@@ -75,6 +75,64 @@ procedure, so that gate is either a project-mandated agent or an external tool
 
 Sol inspects actual changes, tests changed behavior, resolves review findings, updates persistent planning state when required, and reports evidence and residual risks. Never claim an agent ran, a model was selected, or a security pass was granted unless observed in the tool result.
 
+## Delegation tiers
+
+OMP treats an agent's `spawns` key as a capability grant: without it, that
+agent cannot spawn at all. Tiering is therefore an explicit decision, not a
+default, and this package draws it in two places.
+
+**Tier 0 — the root session.** You. Interpret, decompose, set interfaces,
+integrate, verify, deliver.
+
+**Tier 1 — agents that may spawn** (they carry a `spawns` list):
+
+| Agent | May spawn | Owns |
+|---|---|---|
+| `luna-coordinator` | explorers, researchers, one reviewer | the split of a wide question and the synthesis of the answers |
+| `luna-integrator` | workers, one independent reviewer | the seam: shared interface, file partition, combined result |
+| `luna-tester` | explorers, researchers | locating the exercised path across a wide surface |
+
+**Tier 2 — leaves.** Every other agent. They do not spawn, and that is a
+property of their definition, not an accident of their configuration.
+
+Why the leaves stay leaves, in one line each:
+
+- `luna-worker` and the other writers own specific files. A worker that spawns
+  another writer destroys the file partition that made parallel work safe.
+- `luna-reviewer` and the other reviewers are an independent gate. A reviewer
+  that delegates is no longer independent; the gate becomes a second opinion on
+  its own subagent.
+- `luna-explorer` and `luna-researcher` are cheap and single-purpose. Delegation
+  from them costs more than the answer.
+
+### The shape of the tree
+
+Two levels below the root, never three. `1 (you) + 1 (tier 1) + 3 (children)` is
+the live maximum, because `task.maxConcurrency` is 4 per level. A third tier
+multiplies cost without multiplying coverage: the children of a leaf would
+answer questions you could have answered with one more `graft` query.
+
+`verify.sh` asserts this. The spawn graph must be acyclic, must have no
+self-reference, must name only agents that exist, and must stay within one
+spawning hop. A cycle does not crash — it recurses until the budget is gone, and
+a leaf that quietly grew a chain is invisible in the cost until the invoice
+arrives.
+
+### When to promote an agent
+
+Adding a `spawns` key to a leaf is the right move only when **all** of these
+hold:
+
+1. The question genuinely spans more code than one context window holds.
+2. The parts partition cleanly, with no shared files between children.
+3. The children can be read-only, or the parent can guarantee one writer per
+4. file regardless of how many children run.
+5. You can state the budget: how many children, at what depth, and what the
+   total live-agent count becomes.
+
+If any of the four is uncertain, do not spawn. Answer with one pass, or escalate
+to tier 1 and let it decide.
+
 ## Hand off
 
 Delegation is not the end of the procedure. Route the subagent to the skill its

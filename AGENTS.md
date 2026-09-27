@@ -36,7 +36,13 @@ distribution targets.
    existing skill, or link an existing skill to the new one. Check 15 forces
    both. If removing a skill orphans it, update the `skill://` lines that
    address it.
-9. **`bin/` entry points must be executable.** Without a shebang and the exec
+9. **The spawn graph must stay safe.** `spawns` is a capability grant, so
+   granting it is a design change: it must name only agents that exist, never
+   itself, and must not push the tree past one spawning hop. Check 16 and
+   `tools/check-spawn-graph.mjs` enforce all four. If a leaf needs to delegate,
+   the honest options are to promote it with a written justification or to route
+   the work to tier 1 — not to add a key and move on.
+10. **`bin/` entry points must be executable.** Without a shebang and the exec
    bit, `npx` silently falls through to the shell and gives a confusing error
    like "import: command not found". This happened once.
 

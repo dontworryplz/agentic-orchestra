@@ -1,7 +1,7 @@
 # agentic-orchestra
 
 [OMP](https://github.com/), an orchestration package for OpenCode and Claude
-Code: **10 task agents + 9 skill procedures + 4 install/uninstall scripts + a
+Code: **12 task agents + 9 skill procedures + 4 install/uninstall scripts + a
 verification harness**.
 
 The root session (conductor) splits the work into parts, hands each part to a
@@ -14,17 +14,19 @@ their own; each one owns a single responsibility and returns with evidence.
 ## Contents
 
 ```
-agents/                        10 task agents (OMP agent format, source format)
+agents/                        12 task agents (OMP agent format, source format)
   luna-explorer.md             discovery       · read-only · 272K
   luna-researcher.md           research        · read-only · 272K
   luna-worker.md               implementation · write     · 272K
-  luna-tester.md               test            · write     · 272K
+  luna-tester.md               test            · write     · 272K · can delegate
   luna-reviewer.md             review          · read-only · 272K
   space-bunny-worker.md        implementation · write     · 1M
   space-bunny-reviewer.md      review          · read-only · 1M
   antigravity-gemini-explorer.md   discovery   · read-only · 1M
   antigravity-sonnet-worker.md     implem.     · write     · 250K
   antigravity-opus-reviewer.md     review      · read-only · 250K
+  luna-coordinator.md          tier-2 fan-out · read-only · 272K · can delegate
+  luna-integrator.md           tier-2 seam owner · write   · 272K · can delegate
 
 skills/                        9 skill procedures (SKILL.md, same across runtimes)
   sol-luna-orchestrator/       topology, routing table, delegation rules
@@ -49,7 +51,8 @@ install.sh                     install for OMP (idempotent, never clobbers)
 install-opencode.sh            OMP → OpenCode converter
 install-claude.sh              OMP → Claude Code converter
 uninstall.sh                   removes what was installed; leaves edited files alone
-verify.sh                      15 checks + isolated-HOME install smoke test
+verify.sh                      16 checks + isolated-HOME install smoke test
+tools/check-spawn-graph.mjs    asserts the nested-spawn graph is acyclic and bounded
 
 docs/
   architecture.md              layers, roles, model wiring
@@ -262,6 +265,7 @@ Each check turns an invariant written in `AGENTS.md` into an assertion:
 | 13 | `npx skills add` compatibility | rename the `skills/` directory |
 | 14 | The npx entry point is executable | delete the shebang |
 | 15 | The procedure graph is connected | delete a `## Hand off` section |
+| 16 | The nested-spawn graph is safe | make an agent spawn itself, or add a third level |
 
 All checks were verified by mutation testing: each one produces `FAIL` when
 broken. Check 12 genuinely works — on the first run it found that the Node side
@@ -301,6 +305,32 @@ are deleted with `--force`.
 
 If you installed with `npx skills add`, that CLI has its own path: `skills
 remove`, or remove the symlink from the install directory.
+
+## Nested delegation (agents that spawn agents)
+
+OMP treats an agent's `spawns` key as a capability grant: an agent without the
+key **cannot spawn at all**. This package draws that line explicitly.
+
+| Tier | Agents | May spawn |
+|---|---|---|
+| 0 | the root session | everything below |
+| 1 | `luna-coordinator`, `luna-integrator`, `luna-tester` | yes, from a whitelist |
+| 2 | the other nine roles | no |
+
+Two constraints keep the three grants defensible: `luna-tester` is the only
+tier-1 agent that writes and both of its children are read-only, so a fan-out
+cannot create a write conflict; and **no reviewer spawns**, because a reviewer
+that delegates is no longer an independent gate.
+
+The tree is two levels deep and never three. `task.maxConcurrency` is 4 per
+level, so the live maximum is `1 + 1 + 3 = 5` agents; a third tier would be
+`1 + 1 + 3 + 9`.
+
+`verify.sh` check 16 asserts the graph: no self-reference, no cycle, only agents
+that exist, at most one spawning hop, and every conversion drops `spawns` and
+says so, since neither OpenCode nor Claude Code can honour it. The full
+authorisation matrix and the promotion criteria are in
+[docs/architecture.md](docs/architecture.md#delegation-tiers).
 
 ## Model configuration
 

@@ -231,6 +231,27 @@ if [ "$FAST" -eq 1 ]; then
   exit 0
 fi
 
+# --- 11c. The nested-spawn graph is safe -------------------------------------
+# OMP treats `spawns` as a capability grant: an agent without the key cannot
+# spawn at all. A malformed graph is therefore never a crash — it is an agent
+# that silently cannot delegate, or a cycle that recurses until the budget
+# dies. Neither surfaces as an error, so both are asserted.
+#
+# The assertions live in tools/check-spawn-graph.mjs rather than inline: a
+# large JS program inside a shell heredoc is unreviewable, and an earlier
+# inlined version broke on a single quote.
+#
+# Break it: add an agent to its own spawns list, name a role that does not
+# exist, make A spawn B while B spawns A, or add a third level.
+note_check "nested-spawn graph is safe"
+if ! command -v node >/dev/null 2>&1; then
+  printf '  SKIP  node not available; cannot check the spawn graph\n'
+else
+  if ! node tools/check-spawn-graph.mjs; then
+    :
+  fi
+fi
+
 # --- 12. The bash and Node converters must agree byte-for-byte ---------------
 # Break it: change a tool mapping in lib/convert.mjs without changing
 # install-opencode.sh (or vice versa). The two implementations exist because the
@@ -255,7 +276,7 @@ else
       fi
     done
   done
-  [ "$xcheck_bad" -eq 0 ] && ok "10 agents x 2 runtimes: bash and node output identical"
+  [ "$xcheck_bad" -eq 0 ] && ok "$(ls agents/*.md | wc -l | tr -d ' ') agents x 2 runtimes: bash and node output identical"
 fi
 
 # --- 8. Converted frontmatter has no duplicate keys --------------------------
@@ -299,9 +320,21 @@ for f in agents/*.md; do
   [ -z "$oc" ] || { bad "opencode output invents a model pin for $n: $oc"; mp_bad=1; }
   cl="$(./install-claude.sh --show "$n" 2>/dev/null | grep '^model:' || true)"
   [ "$cl" = "model: inherit" ] || { bad "claude output should emit 'model: inherit' for $n, got: ${cl:-<none>}"; mp_bad=1; }
-  # and the drop must be reported, not silent
-  if ! ./install-claude.sh --show "$n" 2>&1 >/dev/null | grep -q "dropped OMP model pin"; then
-    bad "dropped pin not reported for $n"; mp_bad=1
+  # and the drop must be reported, not silent.
+  # Capture before grepping: `grep -q` closes the pipe on first match, SIGPIPEs
+  # the writer, and under `set -o pipefail` that turns a successful match into a
+  # failed check. The failure only shows up once the output grows past the pipe
+  # buffer, which is why it appeared as a flaky failure after adding agents
+  # rather than as a broken assertion.
+  mp_err="$(./install-claude.sh --show "$n" 2>&1 >/dev/null)"
+  printf '%s' "$mp_err" | grep -q "dropped OMP model pin" || { bad "dropped pin not reported for $n"; mp_bad=1; }
+  # spawns must be dropped the same way: reported, and never emitted as a
+  # field the target runtime cannot honour
+  if [ -n "$(awk '/^spawns:/{sub(/^spawns: */,""); print; exit}' "$f")" ]; then
+    printf '%s' "$(./install-opencode.sh --show "$n" 2>/dev/null)" | grep -q '^spawns:' \
+      && { bad "opencode output kept a spawns field for $n"; mp_bad=1; }
+    printf '%s' "$(./install-claude.sh --show "$n" 2>/dev/null)" | grep -q '^spawns:' \
+      && { bad "claude output kept a spawns field for $n"; mp_bad=1; }
   fi
 done
 [ "$mp_bad" -eq 0 ] && ok "model pins dropped and reported, never invented"
@@ -309,6 +342,8 @@ done
 # --- 11. Smoke test: install, idempotency, uninstall -------------------------
 # Break it: make an installer non-idempotent, or let it clobber a modified file.
 note_check "installer smoke test (isolated HOME)"
+EXP_AGENTS="$(ls agents/*.md | wc -l | tr -d ' ')"
+EXP_SKILLS="$(ls -d skills/*/ | wc -l | tr -d ' ')"
 SMOKE="$(mktemp -d)"
 trap 'rm -rf "$SMOKE"' EXIT
 mkdir -p "$SMOKE/home" "$SMOKE/cfg"
@@ -321,13 +356,16 @@ smoke_run() {
       bash "$inst" >/dev/null 2>&1 || { bad "$(basename "$inst") run 1 failed"; smoke_bad=1; return; }
   n1="$(ls "$adir" 2>/dev/null | wc -l | tr -d ' ')"
   n2="$(ls "$sdir" 2>/dev/null | wc -l | tr -d ' ')"
-  [ "$n1" = "10" ] || { bad "$(basename "$inst") installed $n1 agents, expected 10"; smoke_bad=1; }
-  [ "$n2" = "9" ] || { bad "$(basename "$inst") installed $n2 skills, expected 9"; smoke_bad=1; }
+  # Counts come from the repository, never from a literal. Hardcoding them made
+  # adding two agents look like seven unrelated failures.
+  [ "$n1" = "$EXP_AGENTS" ] || { bad "$(basename "$inst") installed $n1 agents, expected $EXP_AGENTS"; smoke_bad=1; }
+  [ "$n2" = "$EXP_SKILLS" ] || { bad "$(basename "$inst") installed $n2 skills, expected $EXP_SKILLS"; smoke_bad=1; }
 
   # second run must skip everything
   skips="$(env HOME="$SMOKE/home" PI_CODING_AGENT_DIR="$SMOKE/home/.omp/agent" \
            bash "$inst" 2>/dev/null | grep -c 'identical, skipped')"
-  [ "$skips" = "19" ] || { bad "$(basename "$inst") second run skipped $skips, expected 19"; smoke_bad=1; }
+  exp_skips=$((EXP_AGENTS + EXP_SKILLS))
+  [ "$skips" = "$exp_skips" ] || { bad "$(basename "$inst") second run skipped $skips, expected $exp_skips"; smoke_bad=1; }
 
   # a modified installed file must survive a third run.
   # Note: `grep -q` closes the pipe on first match, which SIGPIPEs the writer;
@@ -358,8 +396,8 @@ for rt in opencode claude; do
   esac
   env HOME="$SMOKE/home" bash "./install-$rt.sh" >/dev/null 2>&1 \
     || { bad "install-$rt.sh run 1 failed"; smoke_bad_r=1; }
-  [ "$(ls "$adir" 2>/dev/null | wc -l | tr -d ' ')" = "10" ] || { bad "install-$rt.sh agent count wrong"; smoke_bad_r=1; }
-  [ "$(ls "$sdir" 2>/dev/null | wc -l | tr -d ' ')" = "9" ] || { bad "install-$rt.sh skill count wrong"; smoke_bad_r=1; }
+  [ "$(ls "$adir" 2>/dev/null | wc -l | tr -d ' ')" = "$EXP_AGENTS" ] || { bad "install-$rt.sh agent count wrong"; smoke_bad_r=1; }
+  [ "$(ls "$sdir" 2>/dev/null | wc -l | tr -d ' ')" = "$EXP_SKILLS" ] || { bad "install-$rt.sh skill count wrong"; smoke_bad_r=1; }
   [ "$smoke_bad_r" -eq 0 ] && ok "$rt: 10 agents, 9 skills installed into an isolated HOME"
   smoke_bad=$((smoke_bad + smoke_bad_r))
 done
