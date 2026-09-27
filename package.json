@@ -1,0 +1,81 @@
+{
+  "name": "agentic-orchestra",
+  "version": "0.2.0",
+  "description": "Multi-agent roles and skill procedures for OMP, OpenCode, and Claude Code. 10 task agents, 9 skills, non-clobbering installers for all three runtimes.",
+  "license": "BSL-1.0",
+  "type": "module",
+  "bin": {
+    "agentic-orchestra": "./bin/agentic-orchestra.mjs"
+  },
+  "main": "./lib/convert.mjs",
+  "exports": {
+    ".": "./lib/convert.mjs",
+    "./convert": "./lib/convert.mjs",
+    "./frontmatter": "./lib/frontmatter.mjs",
+    "./paths": "./lib/paths.mjs"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "agents/",
+    "skills/",
+    "docs/",
+    "install.sh",
+    "install-opencode.sh",
+    "install-claude.sh",
+    "uninstall.sh",
+    "verify.sh",
+    "README.md",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "skill": {
+    "entry": "skills/sol-luna-orchestrator/SKILL.md",
+    "references": "skills",
+    "harnesses": [
+      "omp",
+      "opencode",
+      "claude-code",
+      "codex",
+      "cursor"
+    ]
+  },
+  "scripts": {
+    "verify": "./verify.sh",
+    "verify:fast": "./verify.sh --fast",
+    "test": "node bin/agentic-orchestra.mjs verify && ./verify.sh"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dontworryplz/agentic-orchestra-.git"
+  },
+  "homepage": "https://github.com/dontworryplz/agentic-orchestra-#readme",
+  "bugs": {
+    "url": "https://github.com/dontworryplz/agentic-orchestra-/issues"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "multi-agent",
+    "orchestration",
+    "subagents",
+    "skills",
+    "opencode",
+    "claude-code",
+    "omp",
+    "codex",
+    "antigravity"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ]
+}
