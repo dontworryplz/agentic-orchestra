@@ -1,0 +1,22 @@
+# Declared skill:// gaps — one skill name per line, nothing else on the line.
+#
+# Every `skill://<name>` reference in agents/ and skills/ must either resolve to
+# skills/<name>/SKILL.md or appear in this file. verify.sh check 3 enforces that
+# and fails on any drift in either direction.
+#
+# Rationale for keeping a list instead of deleting the references: these
+# procedures are real and worth routing to, but they need an external tool or
+# come from another author's repo. Shipping a stub would invite an agent to
+# follow an empty procedure. Documenting the gap keeps the routing honest until
+# the skill can be installed properly.
+#
+# Format: <name>  # <why it is absent>  — the comment is for humans, verify.sh
+# strips lines starting with # and reads the first field.
+
+caveman           # exists at ~/.agents/skills + ~/.config/opencode/skills; third-party, not vendored here
+codebase-memory   # needs the codebase-memory-mcp server; MCP-backed, not a portable SKILL.md
+context7-mcp      # needs the context7 MCP server; MCP-backed
+eresus-guard      # no local source; security gate procedure, highest-value gap to author
+gitnexus-exploring # needs the gitnexus CLI/index; third-party, not vendored here
+gsd-code-review   # part of the GSD skill cluster; third-party, not vendored here
+no-ai-slop        # installed at ~/.omp/skills but authored elsewhere; third-party, not vendored here

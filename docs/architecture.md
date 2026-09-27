@@ -89,3 +89,55 @@ Hiçbir uzman ajan genişletilmiş bir yetkiye sahip değildir:
 - Hiçbir ajan `stage` veya `commit` çağırmaz; bu conductor'ın işidir.
 - Tüm roller "raporladıktan sonra dur" disipliniyle çalışır; asla teslim
   iddiasında bulunmaz.
+
+## Dağıtım katmanı
+
+İki bağımsız yol aynı `agents/` ve `skills/` kaynağını okur. Karar nedeni
+kapsam, tercih değil:
+
+```
+                    agents/ (10)        skills/ (9)
+                         │                  │
+        ┌────────────────┴─────────┬────────┴───────────────┐
+        │                          │                        │
+  npx skills add            agentic-orchestra         install*.sh
+  (vercel-labs/skills)      (Node CLI)                (bash)
+        │                          │                        │
+  skill only,               skill + agents,           skill + agents,
+  80+ agent                 omp/opencode/claude       omp/opencode/claude
+  varsayılan: symlink       kopyalar, üstüne yazmaz   kopyalar, üstüne yazmaz
+```
+
+`npx skills add` ajan tanımı taşımaz ve OMP'yi tanımaz; `skills` v1.7.0'nin
+agent tablosunda `opencode` ve `pi` var, `omp` yok. Bu yüzden OMP ya da ajan
+rolleri gerekiyorsa diğer iki yol gerekir.
+
+Üç yolun da tek güvenceyi paylaştığı sözleşme: **kurulum asla üstüne yazmaz.**
+`npx skills add` bu garantiyi vermez (varsayılan symlink kurar, `--copy` ile
+kopyalar), bu yüzden aynı skill'i iki yolla birden kurma.
+
+## Dönüşüm katmanı
+
+`agents/*.md` OMP formatındadır. Diğer iki runtime'ta frontmatter şeması
+farklıdır, dönüşüm iki yerde uygulanır:
+
+| Kaynak alan | OMP | OpenCode | Claude Code |
+|---|---|---|---|
+| araçlar | `tools: a, b, c` | `tools:` altında `a: true` haritası | `tools: A,B,C` Title-case liste |
+| rol | — | `mode: subagent` | — |
+| model | `provider/model:effort` | *(düşürülür)* | `inherit` |
+| ek alan | `read-summarize` | `temperature`, `steps` | `effort` |
+
+İki uygulama (bash ve Node) bilinçli olarak tekrar eder: biri bağımlılıksız,
+diğeri platformlar arası. Tekrar olmasaydı sessizce ayrışırdı; `verify.sh`
+kontrol 12 ikisini byte-byte karşılaştırır ve ilk çalıştırmada Node'un
+`satır sonu boşluğu` farkını buldu.
+
+İki kural dönüşümü sınırlar:
+
+1. **Model pini asla uydurulmaz.** OMP `provider/model:effort` ister; OpenCode
+   kısa takma ad, Claude Code dört değerlik enum kabul eder. Ortak dil yoktur.
+   Betikler pini düşürüp stderr'de raporlar.
+2. **Salt-okunurluk dönüşümde korunur.** OpenCode çıktısında verilmeyen her
+   kapasite `false` yazılır. Aksi hâlde bir keşif ajanı runtime varsayılanıyla
+   yazma yetkisi kazanırdı — sessiz bir yetki yükseltmesi.
