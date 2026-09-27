@@ -20,7 +20,7 @@ import { parseFrontmatter } from '../lib/frontmatter.mjs';
 import { isRuntimeInstalled, repoRoot, resolvePaths, RUNTIMES } from '../lib/paths.mjs';
 import { runChecks } from '../lib/verify.mjs';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 
 const log = (msg = '') => process.stdout.write(`${msg}\n`);
 const warn = (msg) => process.stderr.write(`  ! ${msg}\n`);

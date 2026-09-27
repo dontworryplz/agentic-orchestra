@@ -1,6 +1,6 @@
 {
   "name": "agentic-orchestra",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Multi-agent roles and skill procedures for OMP, OpenCode, and Claude Code. 10 task agents, 9 skills, non-clobbering installers for all three runtimes.",
   "license": "BSL-1.0",
   "type": "module",
