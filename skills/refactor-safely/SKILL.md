@@ -104,3 +104,12 @@ A completed refactor reports:
 - Residual risk: what remains unproven and what would surface it.
 
 Unverifiable is reported as unverified. No claim of equivalence without the evidence named above.
+
+## Hand off
+
+| You need to | Go to |
+|---|---|
+| Enumerate the blast radius | `skill://context-fetch` for the general discipline, or `skill://graft` when a `graft/` index or the graft MCP server exists — one `callers --depth all` replaces the manual sweep |
+| Prove behavior is preserved | `skill://empirical-validation` — a refactor's evidence is the same behavior passing before and after |
+| Conform to a written contract | `skill://verifier` — turn each clause into the observation that would refute it |
+| Get the diff reviewed once it is written | `skill://review-changes` — establish the diff base first; a half-migrated tree is easier to catch in review than to reason about afterwards |

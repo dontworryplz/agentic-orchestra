@@ -160,3 +160,36 @@ Close with:
 
 Keep it compressed and evidence-first. If a section would be empty, omit it
 rather than padding.
+
+## Hand off
+
+| Your finding needs | Go to |
+|---|---|
+| Proof that a test would actually catch the bug | `skill://empirical-validation` — the falsification test decides whether the test is a finding or a tautology |
+| Spec-level conformance rather than a diff | `skill://verifier` — clause by clause, with a verdict per clause |
+| To reproduce a defect before reporting it | `skill://debug-issue` — a finding you could not reproduce is an unverified suspicion, and must be labelled that way |
+
+## One finding, end to end
+
+The contract above is abstract; this is what a P1 looks like when it is done
+right.
+
+> **P1 High — tenant escape via unfiltered list endpoint**
+> `handlers/notes.go:42`
+> `ListNotes` filters by `user_id` from the session, but the admin branch at
+> line 51 passes `req.Query("user_id")` straight through. The guard at
+> `middleware/auth.go:18` authenticates the caller and never checks tenancy, so
+> any authenticated user reaching `/notes` with `?user_id=` reads another
+> tenant's rows. Reachable from the public router at `routes/http.go:77`.
+> Impact: cross-tenant data disclosure.
+> Smallest fix: drop the query parameter from the admin branch and select the
+> tenant from the session, as the non-admin branch already does at line 44.
+> Validation: a test that creates two tenants, requests tenant B's notes as
+> tenant A with and without the parameter, and asserts an empty result both
+> times. Without the fix, the parameterized case returns B's rows.
+
+What makes that a finding rather than a note: exact location, the traced path
+from guard to protected action, a reachable scenario, the smallest fix, and a
+validation that fails without it. What is missing is also stated — this
+example says nothing about write paths, so that goes under residual
+uncertainty, not silently under "resolved checks".

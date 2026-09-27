@@ -1,35 +1,36 @@
-# Sorun giderme
+# Troubleshooting
 
-Buradaki her madde bu depoyu kurarken gözlenmiş, tahmin edilmemiş bir
-durumdan çıkarıldı.
+Every item here was derived from a situation observed while installing this
+repo, not predicted.
 
-## "agentic-orchestra" 404 veriyor
+## "agentic-orchestra" returns 404
 
-Depo adında **sondaki tire gerçek**: `dontworryplz/agentic-orchestra-`.
-Tiresiz ad (`agentic-orchestra`) GitHub'da çözünmez.
+The **trailing dash in the repo name is real**: `dontworryplz/agentic-orchestra-`.
+The name without the dash (`agentic-orchestra`) does not resolve on GitHub.
 
 ```bash
 git clone https://github.com/dontworryplz/agentic-orchestra-.git
 ```
 
-## `omp agents unpack` editlediğin ajan dosyalarını eziyor
+## `omp agents unpack` overwrites the agent files you edited
 
-`omp agents unpack --user --force`, `~/.omp/agent/agents/*.md` dosyalarının
-üzerine yazar. Elle düzenlediğiniz ajan tanımı bu komutla kaybolur.
+`omp agents unpack --user --force` overwrites the files
+`~/.omp/agent/agents/*.md`. An agent definition you edited by hand is lost by
+this command.
 
-Bu yüzden ajanlar bu depoda versiyonlanır. Kurulumdan sonra
-`~/.omp/agent/agents` bir **dağıtım hedefidir**, kaynak değil.
+That is why the agents are versioned in this repo. After install,
+`~/.omp/agent/agents` is a **distribution target**, not the source.
 
-## Ajan çalışıyor ama model beklediğin değil
+## The agent runs but not with the model you expected
 
-Model pinleri iki yerde tanımlı ve çelişebiliyor:
+Model pins are defined in two places and they can contradict each other:
 
 - `~/.omp/agent/config.yml` → `task.agentModelOverrides`
 - `agents/*.md` → frontmatter `model:`
 
-Kurulum anında ölçülen fark: `luna-*` rolleri config'de
-`openai-codex/gpt-5.6-luna:max`, ajan dosyalarında
-`openai-codex/gpt-6-luna:max` idi. Hangisinin uygulandığını **tahmin etmeyin**:
+The difference measured at install time: the `luna-*` roles were
+`openai-codex/gpt-5.6-luna:max` in the config, `openai-codex/gpt-6-luna:max` in
+the agent files. **Do not guess** which one is applied:
 
 ```bash
 grep -A20 'agentModelOverrides' ~/.omp/agent/config.yml
@@ -37,64 +38,65 @@ grep -h '^model:' ~/.omp/agent/agents/luna-*.md
 omp models | grep -E 'gpt-[56](\.6)?-luna'
 ```
 
-İkisi farklıysa ikisini de bildirin ve hangisinin çalıştığını gerçek bir
-`task` sonucuyla doğrulayın. `space-bunny-*` rolleri config'te hiç tanımlı
-değildir; yalnızca frontmatter pinleri vardır.
+If the two differ, report both and verify with a real `task` result which one
+actually runs. The `space-bunny-*` roles are not defined in the config at all;
+only frontmatter pins exist for them.
 
-## `graft` skill'i çalışmıyor
+## The `graft` skill does not work
 
-`graft` skill'i **koşulludur**: repo kökünde `graft/` dizini ya da graft MCP
-sunucusu yoksa uygulanacak bir aracı yoktur. Bu skill'i taşımak, aracı
-taşımaz.
+The `graft` skill is **conditional**: without a `graft/` directory at the repo
+root or the graft MCP server, there is no tool to apply. Moving the skill does
+not move the tool.
 
-Kurulum sırasında gözlenen durum: `graft` binary'si PATH'te değildi ve
-`graft/` indeksi yalnızca tek bir repoda (`~/eresus-guard`) vardı. Yani bu
-makinedeki çoğu repoda bu skill'in karşılığı `codebase-memory-mcp`'dir.
+Situation observed during install: the `graft` binary was not on PATH and the
+`graft/` index existed in only one repo (`~/eresus-guard`). So on most repos on
+this machine the counterpart of this skill is `codebase-memory-mcp`.
 
-Kontrol:
+Check:
 
 ```bash
 ls -d graft 2>/dev/null || echo 'bu repo graft-indexed değil'
 command -v graft || echo 'graft CLI yok'
 ```
 
-İkisi de yoksa ajanın `graft` yönlendirmesine uyması beklenmemeli; skill
-preflight'ı bu durumda grep/`read`'e düşmeyi söyler.
+If both are missing you should not expect the agent to follow its `graft`
+routing; the skill preflight says to fall back to grep/`read` in that case.
 
-## Skill kurulu ama ajan "skill bulamadım" diyor
+## Skill installed but the agent says "skill not found"
 
-İki ayrı skill dizini taranır ve ikisi de geçerlidir:
+Two separate skill directories are scanned and both are valid:
 
-- `~/.omp/skills/<ad>/SKILL.md` — kullanıcı global skill'leri (kurulum
-  hedefi budur)
-- `~/.omp/agent/managed-skills/<ad>/SKILL.md` — `PI_CODING_AGENT_DIR` altındaki
-  yönetilen skill'ler
+- `~/.omp/skills/<name>/SKILL.md` — user global skills (this is the install
+  target)
+- `~/.omp/agent/managed-skills/<name>/SKILL.md` — the managed skills under
+  `PI_CODING_AGENT_DIR`
 
-Kurulum betiği `~/.omp/skills/` hedefini kullanır çünkü `omp agents unpack`
-yalnızca `agents/` dizinine dokunur; skills dizinine dokunmaz.
+The install script uses the `~/.omp/skills/` target because `omp agents unpack`
+only touches the `agents/` directory; it does not touch the skills directory.
 
-Doğrulama:
+Verification:
 
 ```bash
 ls ~/.omp/skills
 omp --skills='graft,sol-luna-orchestrator' -p 'list your available skills'
 ```
 
-Tüm skill keşfini kapatmak için `--no-skills`, yalnız bir alt küme yüklemek
-için `--skills='git-*,docker'` kullanılır.
+To turn off all skill discovery use `--no-skills`; to load only a subset use
+`--skills='git-*,docker'`.
 
-## Bu dosyaları OpenCode'a kopyaladım, ajanlar görünmüyor
+## I copied these files to OpenCode, the agents do not show up
 
-**Ajan dosya formatları runtime'lar arası uyumsuzdur.** Kopyalamak çalışmaz.
+**Agent file formats are incompatible across runtimes.** Copying does not
+work.
 
-OMP agent frontmatter'ı:
+OMP agent frontmatter:
 
 ```yaml
 tools: read, grep, glob, lsp, bash, edit, write   # virgüllü liste
 read-summarize: false
 ```
 
-OpenCode agent frontmatter'ı:
+OpenCode agent frontmatter:
 
 ```yaml
 mode: primary
@@ -105,92 +107,92 @@ permission:
   read: allow
 ```
 
-Aynı `.md` uzantısı, iki farklı şema. OpenCode tarafına aktaracaksanız
-`tools` listesini `permission` haritasına çevirmeniz ve `read-summarize`
-alanını düşürmeniz gerekir.
+Same `.md` extension, two different schemas. If you are transferring to the
+OpenCode side you have to convert the `tools` list into the `permission` map
+and drop the `read-summarize` field.
 
-## `install.sh` hiçbir şey yazmıyor
+## `install.sh` does not write anything
 
-Bilerek. Var olan dosyaların üzerine yazmaz; farklı bir dosya varsa sadece
-uyarır. Üzerine yazmak için:
+By design. It does not overwrite existing files; if a file differs it only
+warns. To overwrite:
 
 ```bash
 ./install.sh --force
 ```
 
-Önce ne yapacağını görmek için:
+To see what it would do first:
 
 ```bash
 ./install.sh --dry-run
 ```
 
-## Ajanlar `skill://` hedeflerini bulamıyor
+## Agents cannot find `skill://` targets
 
-14 skill bu depoda yok (bkz. `docs/skills-reference.md`). Ajan gövdesi skill'i
-yükleyemediğinde prosedürü uydurma riski vardır. Seçenekler: skill'i
-`~/.omp/skills/` altına kopyalayın, sembolik bağ kurun, ya da ajan gövdesindeki
-referansı kaldırın.
+14 skills are not in this repo (see `docs/skills-reference.md`). When the agent
+body cannot load a skill, there is a risk it invents the procedure. Options:
+copy the skill under `~/.omp/skills/`, create a symlink, or remove the
+reference from the agent body.
 
-## Kurulum hedefi başka bir dizin mi?
+## Is the install target a different directory?
 
-`PI_CODING_AGENT_DIR` çevre değişkeni tabanı değiştirir (varsayılan
-`~/.omp/agent`). `install.sh` bu değişkeni okur:
+The `PI_CODING_AGENT_DIR` environment variable changes the base (default
+`~/.omp/agent`). `install.sh` reads this variable:
 
 ```bash
 PI_CODING_AGENT_DIR=/tmp/omp-test ./install.sh --dry-run
 ```
 
-## `npx skills add` bu repoyu bulamıyor
+## `npx skills add` cannot find this repo
 
-Bulması gerekir. Konvansiyon `skills/<ad>/SKILL.md` ve bu depo ona uyuyor.
-Çalışmıyorsa şunları kontrol et:
+It should. The convention is `skills/<name>/SKILL.md` and this repo follows
+it. If it does not work, check these:
 
 ```bash
 ls skills/*/SKILL.md            # her skill dizininde SKILL.md olmalı
 npx skills add dontworryplz/agentic-orchestra- --list
 ```
 
-Bu repo için doğrulanmış çıktı: yerel yoldan `Found 9 skills`, GitHub
-yolundan (push sonrası) aynı. Eğer 0 skill buluyorsa `skills/` dizini
-taşınmış ya da bir skill dizininde `SKILL.md` yok — `verify.sh` kontrol 13
-ikisini de assert eder.
+Output verified for this repo: `Found 9 skills` from the local path, the same
+from the GitHub path (after push). If it finds 0 skills, then the `skills/`
+directory has moved, or one skill directory has no `SKILL.md` — `verify.sh`
+check 13 asserts both.
 
-## `npx skills add` OMP'ye kurmuyor
+## `npx skills add` does not install to OMP
 
-Kurulmuyor, çünkü kuramaz: `skills` v1.7.0'nin agent tablosunda `omp` yok
-(`opencode` ve `pi` var). Paket `PI_CODING_AGENT_DIR` de tanımıyor. OMP için
-`npx agentic-orchestra install omp` ya da `./install.sh`.
+It does not install, because it cannot: in the `skills` v1.7.0 agent table
+there is no `omp` (`opencode` and `pi` exist). The package does not define
+`PI_CODING_AGENT_DIR` either. For OMP use `npx agentic-orchestra install omp`
+or `./install.sh`.
 
-## Aynı skill iki yerde kuruldu, hangisi geçerli?
+## The same skill is installed in two places, which one is valid?
 
-`npx skills add` varsayılan olarak **sembolik bağ** kurar; `agentic-orchestra`
-**kopyalar**. İkisi aynı anda çalışırsa hangisinin okunduğu belirsizleşir.
+`npx skills add` sets up a **symlink** by default; `agentic-orchestra`
+**copies**. If both run at once it becomes unclear which one is read.
 
 ```bash
 ls -la ~/.omp/skills/graft        # bağ mı, kopya mı?
 npx skills add <repo> -g -y --copy   # kopyaya zorla
 ```
 
-Tek yol seç. Sembolik bağı tercih ediyorsan ajanları ayrıca
-`npx agentic-orchestra install <runtime> --skills-only` ile kurma.
+Pick one way. If you prefer the symlink, do not also install the agents with
+`npx agentic-orchestra install <runtime> --skills-only`.
 
-## `npx` çalıştırıyor ama "import: command not found" diyor
+## `npx` runs but says "import: command not found"
 
-`bin/*.mjs` dosyasının shebang'ı yok. Bu durumda npm bir sembolik bağ üretir,
-kabuk onu bash olarak okur ve satır satır hata verir. Ayrıca exec biti de
-gerekir.
+The `bin/*.mjs` file has no shebang. In that case npm produces a symlink, the
+shell reads it as bash and errors line by line. The exec bit is also required.
 
 ```bash
 head -1 bin/agentic-orchestra.mjs    # #!/usr/bin/env node olmalı
 ls -l bin/agentic-orchestra.mjs     # -rwxr-xr-x olmalı
 ```
 
-`verify.sh` kontrol 14 bunları assert eder; bu hatayı bir kez yaşadık.
+`verify.sh` check 14 asserts these; we hit this error once.
 
-## Bash ve Node dönüştürücüleri farklı ajan üretiyor
+## The bash and Node converters produce different agents
 
-Olmamalı. `verify.sh` kontrol 12 ikisini byte-byte karşılaştırır. Kırmızıysa
-eşlemelerden biri iki tarafta farklı kalmıştır.
+They should not. `verify.sh` check 12 compares the two byte-for-byte. If it is
+red, one of the mappings stayed different on the two sides.
 
 ```bash
 ./verify.sh 2>&1 | grep -A6 'converters disagree'
@@ -198,14 +200,14 @@ diff <(./install-opencode.sh --show luna-explorer 2>/dev/null) \
      <(node bin/agentic-orchestra.mjs show luna-explorer --runtime opencode 2>/dev/null)
 ```
 
-Bu kontrol işe yaradı: ilk çalıştırmada Node tarafı `tools: ` (satır sonu
-boşluğu) basarken bash `tools:` basıyordu. YAML'da bu ayrım ölümcüldü —
-sonraki `webfetch: false`, önceki `webfetch: true`'yu ezerdi.
+This check earned its keep: on the first run the Node side printed `tools: `
+(trailing space) while bash printed `tools:`. In YAML that difference is fatal —
+a later `webfetch: false` would override an earlier `webfetch: true`.
 
-## OpenCode'da ajanlar görünmüyor ama dosyalar kopyalanmış
+## Agents do not show up in OpenCode but the files were copied
 
-OpenCode'un agent şeması OMP'inkiyle aynı değil. Dönüştürücünün ürettiği
-frontmatter şunu içerir:
+OpenCode's agent schema is not the same as OMP's. The frontmatter the
+converter produces contains this:
 
 ```yaml
 mode: subagent
@@ -214,8 +216,8 @@ tools:
   write: false
 ```
 
-`tools` virgüllü liste değil, anahtar-değer haritası olmalı. Elle kopyaladıysan
-bu yüzden yüklenmiyordur. Dönüştürücüyü kullan:
+`tools` must be a key-value map, not a comma-separated list. If you copied by
+hand that is why it did not load. Use the converter:
 
 ```bash
 ./install-opencode.sh --show luna-worker

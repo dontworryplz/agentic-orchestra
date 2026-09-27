@@ -128,3 +128,28 @@ Report, in this order:
 If step 2 is unavailable, the first line of the report is **NOT VERIFIED**,
 followed by what you tried and what access you need. Never substitute a
 plausible narrative for a missing observation.
+
+## Hand off
+
+| You need to | Go to |
+|---|---|
+| Establish *what went wrong* before you can prove a fix | `skill://debug-issue` |
+| Check a whole specification clause by clause, not one change | `skill://verifier` |
+| Judge someone else's proof rather than produce your own | `skill://review-changes` |
+
+## Degraded mode
+
+Sometimes the tier that would prove the claim is unreachable: no access to the
+environment, no credentials, a dependency that only exists in production, a
+suite that needs a live network. **The claim does not survive that. Say so.**
+
+1. Name the tier you reached and the tier the claim would need.
+2. State the specific access or artifact that is missing — not "insufficient
+   permissions", but which environment, which credential, which record.
+3. Give the command that *would* produce the evidence, so the reader can run it.
+4. Downgrade the claim to what the evidence supports, and mark the rest
+   explicitly unverified.
+
+The failure mode this prevents is the dangerous one: an agent that cannot prove
+a security or data-loss claim quietly drops the words "verified" and ships the
+rest with the same confidence. Degraded mode keeps the gap visible and priced.

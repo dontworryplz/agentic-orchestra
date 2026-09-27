@@ -37,6 +37,28 @@ error or wrong output, exact environment.
 - Capture the failing output verbatim before changing anything. It is the
   baseline for step 6.
 
+## Triage: symptom to first probe
+
+Step 1 is reproduce, but the *first* probe depends on the symptom shape. Guessing
+wrong here costs an hour, so pick by symptom rather than by habit:
+
+| Symptom | First probe | Why that one |
+|---|---|---|
+| Worked yesterday, broken now | `git log` on the suspect area; diff the last change | Recency correlates with exposure, not with cause, but it bounds the search fastest |
+| Fails only for some inputs | Bisect the input set; find one working and one failing case | The difference between the two *is* the bug |
+| Fails only for some users or tenants | Compare the two contexts field by field: role, permissions, locale, feature flags, data shape | Configuration divergence, not logic |
+| Fails on second call, or under load | Check shared mutable state, caches, connection pools, idempotency | State and timing, not the happy path |
+| Wrong values, no error | Print the actual value at the boundary where it is first wrong | An exception would have found it for you |
+| Only in production | Establish what differs: version, config, data volume, feature flags | Almost always a divergence, not a code defect |
+| Flaky, no pattern | Run it N times, record the rate and the varying input | A bug you cannot characterize cannot be proven fixed |
+| Passes locally, fails in CI | Compare environment, dependency versions, and locale/timezone settings | The two environments differ somewhere findable |
+| Regressed after a refactor | `git bisect` over the refactor commits | Refactors are behavior-preserving by contract, so the refactor broke an invariant |
+
+Two universal disqualifiers for the first probe: **do not** clear caches or
+restart the process as step one (that destroys the evidence and hides state
+corruption), and **do not** start by reading more code. If you cannot name the
+probe, you are not ready to probe — go back to reproduction.
+
 ## 2. Characterize
 
 Write the boundary as one sentence: *"X happens when A, but not when B."*
@@ -172,3 +194,16 @@ step actually failed.
 Steps 4 and 5 are the ones that get skipped. If you cannot fill the
 explanation section, you have not debugged — you have guessed. Report the
 localization and the missing evidence instead of a patch.
+
+## Hand off
+
+| You are at | Reach for |
+|---|---|
+| Localizing, and the search is getting expensive | `skill://context-fetch` — cheapest sufficient surface before more reading |
+| Proving the fix, before reporting | `skill://empirical-validation` — the pre/post rule and the falsification test |
+| The fix is structural, not a one-line correction | `skill://refactor-safely` — widen, migrate, narrow; do not half-migrate |
+| Re-reviewing the change after review findings land | `skill://review-changes` |
+
+There is no shipped security skill. If the cause is an authorization, secret, or
+input-trust boundary, stop and report it as a security-relevant boundary rather
+than routing it to a procedure that does not exist here.

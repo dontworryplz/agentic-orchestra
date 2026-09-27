@@ -94,3 +94,16 @@ Before reporting completion of any step 1-8 pass, the agent must be able to stat
 
 If any line cannot be filled, the fetch is not finished: either narrow it, or report the gap instead of
 implying the source was understood.
+
+## Hand off
+
+A fetch is preparation, not the task. When the fact is in hand, route it:
+
+| You now need to | Go to |
+|---|---|
+| Change the structure without breaking callers | `skill://refactor-safely` |
+| Find the observable seam a spec clause must be checked at | `skill://verifier` |
+| Diagnose a failure you can now reproduce | `skill://debug-issue` |
+| Prove a change works, not just that it reads right | `skill://empirical-validation` |
+
+A dead end is a result. Report it rather than routing it into a wider search.

@@ -7,13 +7,55 @@ backward compatible".
 
 ## [Unreleased]
 
-- `npx skills add dontworryplz/agentic-orchestra-` desteği. Depo zaten
-  konvansiyona uyuyordu; doğrulandı (yerel yol ve GitHub yolu). Ek
-  yapılandırma gerekmiyor.
-- `npx agentic-orchestra` — platformlar arası kurulum/kaldırma/doğrulama
-  girişi: `install`, `uninstall`, `verify`, `list`, `show`, `doctor`.
-- İki kurulum yolunun birlikte kullanılması durumundaki sembolik bağ /
-  kopya çakışması README ve troubleshooting'de uyarı olarak belgelendi.
+### Added
+
+- `npx skills add dontworryplz/agentic-orchestra-` works. The repository already
+  followed the convention; verified against both the local path and the GitHub
+  URL. No extra configuration.
+- `npx agentic-orchestra` — a cross-platform install/uninstall/verify entry
+  point: `install`, `uninstall`, `verify`, `list`, `show`, `doctor`.
+- The symlink-versus-copy conflict from using both install paths for one skill is
+  documented as a warning in the README and troubleshooting.
+
+### Changed
+
+- **The procedure graph now exists.** The nine skills were independent
+  documents with 4 `skill://` edges between them; there are now 44. An agent
+  handed one skill had no way to know the other eight existed, so it reinvented
+  their procedures. Every skill now ends with a Hand off section naming the
+  sibling procedures and the trigger for each.
+- `verify.sh` check 15 enforces both halves: every skill has a Hand off section,
+  and no skill is an orphan. It found a real orphan the moment it was written.
+  `sol-luna-orchestrator` was referenced by nothing, even though `executor`'s
+  `DECISION_REQUEST` flow exists to ask it for a scope decision. That link is now
+  explicit, and `executor`'s stop conditions route to it.
+- `empirical-validation`: a **degraded mode** section. When the tier that would
+  prove a claim is unreachable, the claim does not survive it. The mode names
+  the tier reached, the tier needed, the specific missing access, the command
+  that would produce the evidence, and which claims are downgraded. The failure
+  it prevents is an agent quietly dropping the word "verified" and shipping the
+  rest with the same confidence.
+- `debug-issue`: a **symptom-to-first-probe triage table**. The most common waste
+  is choosing a probe by habit; two disqualifiers are named — do not clear
+  caches first, and do not start by reading more code.
+- `review-changes`: one P1 finding worked end to end, so the output contract is
+  concrete rather than a list of fields. It shows what qualifies as a finding and
+  what falls into residual uncertainty instead.
+- `graft`: the claim "There are six of them" was ambiguous — six sections
+  covering seven commands, since `build` and `check` are separate. The count is
+  now explicit.
+- The Turkish-prose check now covers the docs and root markdown as well as the
+  runtime files. The whole repository is English; this stops that from quietly
+  splitting again.
+
+### Fixed
+
+- `sol-luna-orchestrator` referred to `eresus-autonomous`, `graft`, and
+  `empirical-validation` as bare names, which an agent cannot resolve. Replaced
+  with a concrete pre-delegation gate built on resolvable `skill://` URIs, and
+  the section now states plainly that this package ships no security-review
+  procedure — a missing procedure is a place to stop, not a place to improvise
+  one.
 
 ## [0.2.0] — 2026-09-27
 

@@ -86,17 +86,32 @@ else
   ok "$ref_total references: $(printf '%s\n' "$actual_gaps" | grep -c . || true) declared gap(s), rest resolve"
 fi
 
-# --- 4. Runtime files are English, docs are not ------------------------------
-# Break it: write a Turkish runtime prompt into any agents/ or skills/ file.
-note_check "language split"
+# --- 4. Everything is English -------------------------------------------------
+# The whole repository is English: runtime files because models read them, docs
+# because the repository is public and every contributor reads them. This check
+# exists so that split cannot quietly come back.
+#
+# Break it: write a Turkish sentence into any runtime file, doc, or root
+# markdown file. verify.sh is excluded because it necessarily contains the
+# search words themselves.
+note_check "language is English everywhere"
 rt_bad=0
-for f in agents/*.md skills/*/SKILL.md; do
-  if grep -qE '(^|[^[:alpha:]])(ve|ile|icin|olarak|ancak|cunku)([^[:alpha:]]|$)' "$f" \
-     || grep -qE '(^|[^[:alpha:]])(için|olarak|ancak|çünkü)([^[:alpha:]]|$)' "$f"; then
-    bad "Turkish text in runtime file: $f"; rt_bad=1
+lang_targets="$(ls agents/*.md skills/*/SKILL.md docs/*.md docs/*.txt README.md AGENTS.md CHANGELOG.md 2>/dev/null)"
+for f in $lang_targets; do
+  if grep -qE '(^|[^[:alpha:]])(ve|ile|icin|olarak|ancak|cunku|degil|sey)([^[:alpha:]]|$)' "$f" \
+     || grep -qE '(^|[^[:alpha:]])(için|olarak|ancak|çünkü|degil|şey)([^[:alpha:]]|$)' "$f"; then
+    bad "non-English prose in $f"; rt_bad=1
   fi
 done
-[ "$rt_bad" -eq 0 ] && ok "no Turkish prose in runtime files"
+[ "$rt_bad" -eq 0 ] && ok "no Turkish prose in $(printf '%s\n' $lang_targets | wc -l | tr -d ' ') tracked text files"
+
+# One deliberate exception, asserted rather than assumed: the two Turkish words
+# quoted inside troubleshooting examples are diagnostic output, not prose.
+if grep -qE "graft-indexed değil" docs/troubleshooting.md 2>/dev/null; then
+  :
+else
+  bad "docs/troubleshooting.md lost its quoted Turkish example; the detector may be over-broad"
+fi
 
 # --- 5. Read-only roles cannot gain write access through conversion ----------
 # Break it: add `edit` to the tools line of any explorer/reviewer.
@@ -183,6 +198,32 @@ for s in install.sh install-opencode.sh install-claude.sh uninstall.sh verify.sh
   bash -n "$s" 2>/dev/null || { bad "bash -n $s"; sh_bad=1; }
 done
 [ "$sh_bad" -eq 0 ] && ok "all scripts pass bash -n"
+
+# --- 11b. The procedure graph is connected ----------------------------------
+# Nine skills that reference nothing are nine procedures an agent will run in
+# isolation and partly reinvent. Break it: delete a `## Hand off` section, or
+# strip every skill:// mention of one skill so it becomes an orphan.
+#
+# Placed before the --fast gate on purpose: it needs no subprocess, and a check
+# that silently stops running in fast mode is a check you stop trusting.
+note_check "procedure graph is connected"
+pg_bad=0
+for d in skills/*/; do
+  s="$(basename "$d")"
+  grep -q '^## Hand off' "$d/SKILL.md" || { bad "skills/$s has no '## Hand off' section"; pg_bad=1; }
+done
+orphans=""
+for d in skills/*/; do
+  s="$(basename "$d")"
+  refs="$(grep -l "skill://$s\b" skills/*/SKILL.md 2>/dev/null | grep -cv "/$s/SKILL.md$" || true)"
+  refs="${refs:-0}"
+  [ "$refs" -ge 1 ] || orphans="$orphans $s"
+done
+if [ -n "$(printf '%s' "$orphans" | tr -d ' ')" ]; then
+  bad "orphan skill(s), referenced by nothing:$orphans"
+  pg_bad=1
+fi
+[ "$pg_bad" -eq 0 ] && ok "every skill has a Hand off section and is reachable from another skill"
 
 if [ "$FAST" -eq 1 ]; then
   printf '\n%d checks, %d assertions passed, %d failed (fast mode: smoke tests skipped)\n' "$CHECKS" "$PASS" "$FAIL"

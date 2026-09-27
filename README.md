@@ -1,145 +1,148 @@
 # agentic-orchestra
 
-[OMP](https://github.com/), OpenCode ve Claude Code için çok-ajanlı (multi-agent)
-orkestra paketi: **10 görev ajanı + 9 skill prosedürü + 4 kurulum/kaldırma
-betiği + bir doğrulama harness'ı**.
+[OMP](https://github.com/), an orchestration package for OpenCode and Claude
+Code: **10 task agents + 9 skill procedures + 4 install/uninstall scripts + a
+verification harness**.
 
-Kök oturum (conductor) işi parçalara böler, her parçayı tek bir uzman role
-verir, sonra kendisi doğrular. Uzmanlar kendi başlarına iş yapmaz; her biri
-tek bir sorumluluğa sahiptir ve kanıtla geri döner.
+The root session (conductor) splits the work into parts, hands each part to a
+single specialist role, then verifies it itself. Specialists do not work on
+their own; each one owns a single responsibility and returns with evidence.
 
-> Depo adındaki sondaki tire gerçektir: `agentic-orchestra-`.
-> tiresiz ad 404 verir.
+> The trailing hyphen in the repo name is real: `agentic-orchestra-`.
+> The name without it returns 404.
 
-## İçerik
+## Contents
 
 ```
-agents/                        10 görev ajanı (OMP agent formatı, kaynak format)
-  luna-explorer.md             keşif           · read-only · 272K
-  luna-researcher.md           araştırma       · read-only · 272K
-  luna-worker.md               implementasyon  · yazma     · 272K
-  luna-tester.md               test            · yazma     · 272K
-  luna-reviewer.md             inceleme        · read-only · 272K
-  space-bunny-worker.md        implementasyon  · yazma     · 1M
-  space-bunny-reviewer.md      inceleme        · read-only · 1M
-  antigravity-gemini-explorer.md   keşif      · read-only · 1M
-  antigravity-sonnet-worker.md     implem.    · yazma     · 250K
-  antigravity-opus-reviewer.md     inceleme   · read-only · 250K
+agents/                        10 task agents (OMP agent format, source format)
+  luna-explorer.md             discovery       · read-only · 272K
+  luna-researcher.md           research        · read-only · 272K
+  luna-worker.md               implementation · write     · 272K
+  luna-tester.md               test            · write     · 272K
+  luna-reviewer.md             review          · read-only · 272K
+  space-bunny-worker.md        implementation · write     · 1M
+  space-bunny-reviewer.md      review          · read-only · 1M
+  antigravity-gemini-explorer.md   discovery   · read-only · 1M
+  antigravity-sonnet-worker.md     implem.     · write     · 250K
+  antigravity-opus-reviewer.md     review      · read-only · 250K
 
-skills/                        9 skill prosedürü (SKILL.md, runtime'lar arası aynı)
-  sol-luna-orchestrator/       topoloji, yönlendirme tablosu, delegasyon kuralları
-  context-fetch/               en ucuz yeterli yüzeyden başlayarak bağlam kontrolü
-  debug-issue/                 repro → localize → açıkla → kökten düzelt → kanıtla
-  empirical-validation/        kanıt merdiveni, yanlışlayma testi, reddedilen kanıtlar
-  review-changes/              diff tabanı kurma, öncelik sırası, P0–P3, kendini çürütme
-  executor/                    sahiplik sözleşmesi, dur ve bildir koşulları
-  verifier/                    spec maddesi → yanlışlayan gözlem, 3 karar değeri
-  refactor-safely/             patlama yarıçapı, genişlet/migre et/daralt
-  graft/                       kod grafiğinden bağlam/çağrı/blast-radius sorgulama
+skills/                        9 skill procedures (SKILL.md, same across runtimes)
+  sol-luna-orchestrator/       topology, routing table, delegation rules
+  context-fetch/               context check starting from the cheapest sufficient surface
+  debug-issue/                 repro → localize → explain → fix at the root → prove
+  empirical-validation/        evidence ladder, falsification test, rejected evidence
+  review-changes/              diff base, priority order, P0–P3, self-refutation
+  executor/                    ownership contract, stop-and-report conditions
+  verifier/                    spec clause → falsifying observation, 3 decision values
+  refactor-safely/             blast radius, expand/migrate/contract
+  graft/                       context/call/blast-radius queries from the code graph
 
-package.json                   npx girişi (bin: agentic-orchestra) + skill metadata
+package.json                   npx entry point (bin: agentic-orchestra) + skill metadata
 bin/agentic-orchestra.mjs      install · uninstall · verify · list · show · doctor
 lib/
-  convert.mjs                  OMP → OpenCode / Claude Code dönüşümü
-  frontmatter.mjs              bu dosyaların kullandığı YAML alt kümesi
-  paths.mjs                    runtime dizin çözümlemesi
-  verify.mjs                   değişmez kontrolleri (Node tarafı)
+  convert.mjs                  OMP → OpenCode / Claude Code conversion
+  frontmatter.mjs              the YAML subset these files use
+  paths.mjs                    runtime directory resolution
+  verify.mjs                   invariant checks (Node side)
 
-install.sh                     OMP için kurulum (idempotent, üsterine yazmaz)
-install-opencode.sh            OMP → OpenCode dönüştürücü
-install-claude.sh              OMP → Claude Code dönüştürücü
-uninstall.sh                   kurulanı kaldırır; düzenlenmiş dosyalara dokunmaz
-verify.sh                      14 kontrol + izole-HOME kurulum smoke testi
+install.sh                     install for OMP (idempotent, never clobbers)
+install-opencode.sh            OMP → OpenCode converter
+install-claude.sh              OMP → Claude Code converter
+uninstall.sh                   removes what was installed; leaves edited files alone
+verify.sh                      15 checks + isolated-HOME install smoke test
 
 docs/
-  architecture.md              katmanlar, roller, model kablolaması
-  skills-reference.md          hangi skill var, hangisi eksik, neden
-  unresolved-skills.txt        makine-okunur boşluk listesi (verify.sh okur)
-  troubleshooting.md           gözlenmiş sorunlar ve teşhis komutları
-AGENTS.md                      bu depoyu düzenleyen ajanlar için değişmezler
+  architecture.md              layers, roles, model wiring
+  skills-reference.md          which skill exists, which is missing, why
+  unresolved-skills.txt        machine-readable gap list (verify.sh reads it)
+  troubleshooting.md           observed problems and diagnostic commands
+AGENTS.md                      invariants for agents editing this repo
 CHANGELOG.md
 ```
 
-## Hızlı başlangıç
+## Quick start
 
-Sadece **skill** istiyorsan, ecosystem standardı yeter:
+If you only want the **skills**, the ecosystem standard is enough:
 
 ```bash
 npx skills add dontworryplz/agentic-orchestra- -g
 ```
 
-Skill **ve ajan** istiyorsan (ya da OMP'ye kuruyorsan):
+If you want the skills **and the agents** (or you are installing to OMP):
 
 ```bash
 npx agentic-orchestra install all
 ```
 
-İkisi de aynı dosyaları kullanır; neyin hangi yolla gittiğine aşağıda bak.
+Both use the same files; see below for what goes which way.
 
-## Kurulum
+## Installation
 
-### İki yol, iki kapsam
+### Two paths, two scopes
 
-Bu paket iki şey taşıyor ve ikisi için farklı yollar var:
+This package carries two things and there are different paths for each:
 
-| | Skill'ler (9) | Ajan tanımları (10) |
+| | Skills (9) | Agent definitions (10) |
 |---|---|---|
 | `npx skills add` | ✅ | ❌ |
 | `npx agentic-orchestra` | ✅ | ✅ |
 
 **`npx skills add dontworryplz/agentic-orchestra-`**
 
-[vercel-labs/skills](https://github.com/vercel-labs/skills) CLI'ı — agent
-skill'leri için de-facto standart (Nutlope/hallmark da bunu kullanıyor; kendi
-installer'ı yok). Repo'yu klonlar, `skills/` dizinini konvansiyona göre tarar,
-seçtiğin agent'lara yerleştirir. Bu depoda ek bir şey yapman gerekmez.
+The [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI — the
+de-facto standard for agent skills (Nutlope/hallmark uses it too; it has no
+installer of its own). It clones the repo, scans the `skills/` directory by
+convention, and installs into the agents you pick. In this repo you do not
+need to do anything extra.
 
 ```bash
-npx skills add dontworryplz/agentic-orchestra- --list                    # ne var
-npx skills add dontworryplz/agentic-orchestra- -g -y                     # global, hepsi
+npx skills add dontworryplz/agentic-orchestra- --list                    # what is there
+npx skills add dontworryplz/agentic-orchestra- -g -y                     # global, all of it
 npx skills add dontworryplz/agentic-orchestra- -g -y -a opencode claude-code
-npx skills add dontworryplz/agentic-orchestra- -g -y -s debug-issue     # tek skill
+npx skills add dontworryplz/agentic-orchestra- -g -y -s debug-issue     # single skill
 ```
 
-Bu yol 80'den fazla agent'ı kapsar (`opencode`, `claude-code`, `codex`,
-`cursor`, `copilot`, `gemini-cli`, …) ve varsayılan **sembolik bağ** kurar.
+This path covers more than 80 agents (`opencode`, `claude-code`, `codex`,
+`cursor`, `copilot`, `gemini-cli`, …) and sets up a **symlink** by default.
 
 **`npx agentic-orchestra`**
 
 ```bash
-npx agentic-orchestra                      # bulunan her runtime'a kur
-npx agentic-orchestra install omp          # sadece OMP
+npx agentic-orchestra                      # install into every runtime found
+npx agentic-orchestra install omp          # OMP only
 npx agentic-orchestra install all --dry-run
-npx agentic-orchestra list                 # 10 ajan + 9 skill
+npx agentic-orchestra list                 # 10 agents + 9 skills
 npx agentic-orchestra show luna-worker --runtime opencode
-npx agentic-orchestra doctor               # runtime'ları ve durumu göster
-npx agentic-orchestra verify               # değişmezleri doğrula
+npx agentic-orchestra doctor               # show runtimes and state
+npx agentic-orchestra verify               # verify the invariants
 npx agentic-orchestra uninstall omp
 ```
 
-Bu yolun eklediği iki şey var:
+This path adds two things:
 
-1. **Ajan tanımları.** `skills` standardı skill taşır; görev ajanlarını
-   taşıyan standart bir yol yok. Burada 10 rol geliyor.
-2. **OMP desteği.** `skills` v1.7.0'nin agent tablosunda `omp` **yok** —
-   `opencode` ve `pi` var, `omp` yok; paket de `PI_CODING_AGENT_DIR`'ı
-   bilmiyor. OMP'nin dizinleri `~/.omp/skills` ve `~/.omp/agent/agents`.
+1. **Agent definitions.** The `skills` standard carries skills; there is no
+   standard way to carry task agents. Here you get 10 roles.
+2. **OMP support.** `omp` is **not** in the agent table of `skills` v1.7.0 —
+   `opencode` and `pi` are there, `omp` is not; the package also does not know
+   `PI_CODING_AGENT_DIR`. OMP's directories are `~/.omp/skills` and
+   `~/.omp/agent/agents`.
 
-**Hangisini seçmeliyim?**
+**Which one should I pick?**
 
-| Durum | Yol |
+| Situation | Path |
 |---|---|
-| Sadece skill'ler, OpenCode/Claude/Codex/Cursor | `npx skills add` |
-| OMP kullanıyorum | `npx agentic-orchestra` |
-| Ajan rollerini de istiyorum | `npx agentic-orchestra` |
-| `git clone` + script, sürüm kontrolü | `install.sh` |
+| Skills only, OpenCode/Claude/Codex/Cursor | `npx skills add` |
+| I am using OMP | `npx agentic-orchestra` |
+| I want the agent roles too | `npx agentic-orchestra` |
+| `git clone` + script, version control | `install.sh` |
 
-> **İki yolu aynı skill için aynı anda kullanma.** `skills` varsayılan olarak
-> sembolik bağ kurar, `agentic-orchestra` kopyalar. Aynı skill iki yerde iki
-> farklı mekanizmayla durursa hangisinin geçerli olduğu belirsizleşir. Birini
-> seç: ya `skills` + `--copy`, ya da `agentic-orchestra`.
+> **Do not use both paths for the same skill at the same time.** `skills`
+> creates a symlink by default, `agentic-orchestra` copies. If the same skill
+> sits in both places through two different mechanisms, it becomes unclear
+> which one is authoritative. Pick one: either `skills` with `--copy`, or
+> `agentic-orchestra`.
 
-### Repo içinden kurulum (klonlayarak)
+### Installing from the repo (by cloning)
 
 ```bash
 git clone https://github.com/dontworryplz/agentic-orchestra-.git
@@ -148,46 +151,47 @@ cd agentic-orchestra-
 ./install.sh             # OMP
 ./install-opencode.sh    # OpenCode
 ./install-claude.sh      # Claude Code
-./uninstall.sh --omp     # geri al
+./uninstall.sh --omp     # undo
 ```
 
-Bu dört betik ne bash ne Node bağımlılığı ister — `npx` kullanmak istemeyenler
-için. Üçü de aynı sözleşmeyi uygular:
+These four scripts need neither bash nor Node dependencies — for those who do
+not want to use `npx`. All three implement the same contract:
 
-| Bayrak | Etki |
+| Flag | Effect |
 |---|---|
-| `--dry-run` | hiçbir şey yazmaz, yalnızca planı gösterir |
-| `--force` | var olan dosyaların üzerine yazar |
-| `--user` (varsayılan) / `--project` | hedef kapsam |
-| `--agents-only` / `--skills-only` | sadece bir kısmı kurar |
-| `--show <agent>` | dönüşümü ekrana basar, yazmaz |
-| `--temperature N` / `--steps N` | OpenCode knob'ları |
-| `--model <inherit\|sonnet\|opus\|haiku>` | Claude Code `model:` alanı |
+| `--dry-run` | writes nothing, only shows the plan |
+| `--force` | clobbers existing files |
+| `--user` (default) / `--project` | target scope |
+| `--agents-only` / `--skills-only` | installs only part of it |
+| `--show <agent>` | prints the conversion, writes nothing |
+| `--temperature N` / `--steps N` | OpenCode knobs |
+| `--model <inherit\|sonnet\|opus\|haiku>` | Claude Code `model:` field |
 
-### Hedef dizinler
+### Target directories
 
-| Runtime | Ajanlar | Skill'ler |
+| Runtime | Agents | Skills |
 |---|---|---|
 | OMP | `~/.omp/agent/agents/` | `~/.omp/skills/` |
 | OpenCode | `~/.config/opencode/agents/` | `~/.config/opencode/skills/` |
 | Claude Code | `~/.claude/agents/` | `~/.claude/skills/` |
 
-`--project` ile sırasıyla `./.omp/`, `./.opencode/`, `./.claude/` altına kurar.
+With `--project` it installs under `./.omp/`, `./.opencode/`, `./.claude/`
+respectively.
 
-### Betikler neden idempotent ve neden üstüne yazmıyor
+### Why the scripts are idempotent and why they never clobber
 
-Aynı dosyayı ikinci kez kurmaz, sessizce atlar. Farklıysa **üzerine yazmaz**,
-uyarır ve `--force` ister. `~/.omp/agent/agents` bir kaynak değil, dağıtım
-hedefidir; yerel düzenlemeni ezen bir kurulum aracı, hiç kurulum yapmamaktan
-daha kötüdür. `uninstall.sh` de aynı sözleşmeyi ters yönde uygular: kurulduktan
-sonra değiştirdiğin bir dosyayı silmez, raporlar.
+They do not install the same file a second time, they skip it silently. If it
+differs, they **do not clobber**, they warn and require `--force`.
+`~/.omp/agent/agents` is not a source, it is a distribution target; an
+installer that crushes your local edits is worse than no installer at all.
+`uninstall.sh` applies the same contract in reverse: it does not delete a file
+you edited after installing, it reports it.
 
-Bu davranış `verify.sh` içinde bir testtir: izole bir HOME'ya kur, ikinci
-çalıştırmada 19'unun da "identical, skipped" demesini, sonra bir dosyayı
-değiştirip üçüncü çalıştırmada "exists and differs" deyip dosyayı korumasını
-zorlar.
+This behavior is a test inside `verify.sh`: install into an isolated HOME, force
+all 19 of them to say "identical, skipped" on the second run, then edit one
+file and force the third run to say "exists and differs" and preserve the file.
 
-### Elle kurulum
+### Manual installation
 
 ```bash
 AGENTS=~/.omp/agent/agents
@@ -196,80 +200,80 @@ mkdir -p "$AGENTS" "$SKILLS"
 cp agents/*.md    "$AGENTS"/
 cp -R skills/*/   "$SKILLS/"
 ```
-## Dönüştürücüler ne yapıyor ve ne yapmıyor
+## What the converters do and do not do
 
-`agents/*.md` OMP formatındadır. Diğer runtime'lara kurarken:
+`agents/*.md` is in OMP format. When installing into other runtimes:
 
-| Alan | OMP | OpenCode | Claude Code |
+| Field | OMP | OpenCode | Claude Code |
 |---|---|---|---|
-| araçlar | `tools: read, grep, glob` (virgüllü liste) | `tools:` → `read: true` haritası | `tools: Read,Grep,Glob` (Title-case liste) |
-| rol | — | `mode: subagent` | — |
-| model | `openai-codex/gpt-6-luna:max` | **düşürülür** | `inherit` |
-| ek | `read-summarize: false` | `temperature`, `steps` | `effort` |
+| tools | `tools: read, grep, glob` (comma-separated list) | `tools:` → `read: true` map | `tools: Read,Grep,Glob` (Title-case list) |
+| role | — | `mode: subagent` | — |
+| model | `openai-codex/gpt-6-luna:max` | **dropped** | `inherit` |
+| extra | `read-summarize: false` | `temperature`, `steps` | `effort` |
 
-İki kural, kural değil de kısıt:
+Two rules that are constraints, not options:
 
-1. **Model pin'i asla uydurulmaz.** OMP `provider/model:effort` biçiminde pin
-   alır; OpenCode kısa takma ad (`haiku`), Claude Code dört değerlik bir enum
-   (`inherit|sonnet|opus|haiku`) kabul eder. Ortak dil yoktur. Betikler OMP
-   pin'ini **düşürüp her seferinde raporlar**; Claude tarafında `inherit`
-   yazar. `verify.sh` bunu ayrı bir kontrol olarak zorlar.
-2. **Salt-okunurluk dönüşümde korunur.** OpenCode çıktısında verilmeyen her
-   kapasite açıkça `false` yazılır — `edit`/`write`/`patch` dahil. Bir keşif
-   ajanının runtime varsayılanıyla yazma yetkisi kazanması sessiz bir
-   yetki yükseltmesi olurdu.
+1. **The model pin is never fabricated.** OMP pins in `provider/model:effort`
+   form; OpenCode accepts a short alias (`haiku`), Claude Code accepts a
+   four-value enum (`inherit|sonnet|opus|haiku`). There is no common language.
+   The scripts **drop the OMP pin and report it every time**; on the Claude
+   side they write `inherit`. `verify.sh` enforces this as a separate check.
+2. **Read-only-ness is preserved in conversion.** Every capability not given
+   in the OpenCode output is explicitly written as `false` — including
+   `edit`/`write`/`patch`. A discovery agent gaining write permission through
+   a runtime default would be a silent privilege escalation.
 
-`lsp` aracının OpenCode veya Claude Code karşılığı yok; düşürülür ve
-raporlanır. `web_search` → OpenCode'da `webfetch`, Claude Code'da `WebSearch`.
+The `lsp` tool has no OpenCode or Claude Code equivalent; it is dropped and
+reported. `web_search` → `webfetch` in OpenCode, `WebSearch` in Claude Code.
 
-Dönüşümü görmek için:
+To see the conversion:
 
 ```bash
 ./install-opencode.sh --show luna-explorer
 ./install-claude.sh   --show luna-worker
 ```
 
-## Doğrulama
+## Verification
 
-### Paket kendi kendini doğrular
+### The package verifies itself
 
 ```bash
-./verify.sh            # 11 kontrol, 13 assertion + izole-HOME kurulum smoke testi
-./verify.sh --fast     # smoke testleri atla (7 kontrol)
-./verify.sh --quiet    # sadece hataları yaz
+./verify.sh            # 15 checks, 17 assertions + isolated-HOME install smoke test
+./verify.sh --fast     # skip the smoke tests (10 checks)
+./verify.sh --quiet    # print only errors
 ```
 
-Kontrollerin her biri, `AGENTS.md`'de yazılı değişmezi bir assertion'a
-çeviriyor:
+Each check turns an invariant written in `AGENTS.md` into an assertion:
 
-| # | Kontrol | Nasıl kırılır |
+| # | Check | How to break it |
 |---|---|---|
-| 1 | Frontmatter var | bir dosyanın açılış `---`'unu sil |
-| 2 | `name` yoluyla uyuşuyor | dosyayı yeniden adlandır, frontmatter'ı değiştirme |
-| 3 | `skill://` referansları çözülüyor ya da beyan edilmiş boşluk | uydurma bir skill adı ekle |
-| 4 | Runtime dosyaları İngilizce | bir ajana Türkçe cümle ekle |
-| 5 | Salt-okunur rol yazma yetkisi taşımıyor | keşif ajanına `edit` ekle |
-| 6 | Placeholder yok | `TODO` ekle |
-| 7 | Kabuk sözdizimi | bir betikte tırnak dengesizliği |
-| 8 | Dönüşümde yinelenen YAML anahtarı yok | iki OMP aracını tek OpenCode anahtarına eşle, dedupe etme |
-| 9 | Her ajan her runtime'a dönüşüyor | eşleme dalı olmayan bir araç değeri ver |
-| 10 | Model pini uydurulmuyor | dönüştürücüye OMP pin'inden türetilmiş `model:` yaz |
-| 11 | Kurulum smoke testi | installer'ı idempotent olmaktan çıkar |
-| 12 | bash ve Node dönüştürücüler aynı | `lib/convert.mjs`'te bir eşlemeyi değiştir, bash karşılığını değiştirme |
-| 13 | `npx skills add` uyumluluğu | `skills/` dizinini yeniden adlandır |
-| 14 | npx girişi çalıştırılabilir | shebang'ı sil |
+| 1 | Frontmatter exists | delete a file's leading `---` |
+| 2 | Matches by `name` | rename the file, leave the frontmatter alone |
+| 3 | `skill://` references resolve or a gap is declared | add a fabricated skill name |
+| 4 | Runtime files are in English | add a Turkish sentence to an agent |
+| 5 | A read-only role carries no write permission | add `edit` to a discovery agent |
+| 6 | No placeholders | add `TODO` |
+| 7 | Shell syntax | unbalance the quotes in a script |
+| 8 | No duplicate YAML key in the conversion | map two OMP tools to one OpenCode key, do not dedupe |
+| 9 | Every agent converts into every runtime | give a tool value with no mapping branch |
+| 10 | The model pin is not fabricated | write a `model:` derived from the OMP pin into the converter |
+| 11 | Install smoke test | take the installer out of idempotency |
+| 12 | The bash and Node converters are identical | change a mapping in `lib/convert.mjs`, leave the bash counterpart alone |
+| 13 | `npx skills add` compatibility | rename the `skills/` directory |
+| 14 | The npx entry point is executable | delete the shebang |
+| 15 | The procedure graph is connected | delete a `## Hand off` section |
 
-Bütün kontroller mutasyon testiyle doğrulandı: her biri kırıldığında `FAIL`
-veriyor. Kontrol 12 gerçekten işe yarıyor — ilk çalıştırmada Node tarafının
-`tools: ` (satır sonu boşluğu) bastığını, bash'ın `tools:` bastığını buldu.
-Türkçe kontrolü de `Compile`/`argument` gibi İngilizce kelimelerde yanlış
-pozitif üretmiyor.
+All checks were verified by mutation testing: each one produces `FAIL` when
+broken. Check 12 genuinely works — on the first run it found that the Node side
+prints `tools: ` (trailing space) while bash prints `tools:`. The Turkish check
+also does not produce false positives on English words like `Compile` or
+`argument`.
 
-`verify.sh` (bash) ile `npx agentic-orchestra verify` (Node) aynı değişmezleri
-kontrol eder; bash tarafı 14 kontrolün tamamını, Node tarafı shell gerektirmeyen
-10'unu çalıştırır.
+`verify.sh` (bash) and `npx agentic-orchestra verify` (Node) check the same
+invariants; the bash side runs all 15 checks, the Node side runs the 11 that do
+not require a shell.
 
-### Kurulumdan sonra
+### After installation
 
 ```bash
 # OMP
@@ -279,65 +283,68 @@ omp -p "list your available task agents"
 # OpenCode
 opencode run 'list your available agents and skills'
 
-# Model ID'leri geçerli mi?
+# Are the model IDs valid?
 omp models | grep -E 'gpt-6-luna|gpt-6-sol|space-bunny-alpha|gemini-3.8-flash|opus-4-6|sonnet-4-6'
 ```
 
-## Kaldırma
+## Uninstall
 
 ```bash
-npx agentic-orchestra uninstall omp --dry-run    # önce ne silinecek gör
-npx agentic-orchestra uninstall omp              # sil
+npx agentic-orchestra uninstall omp --dry-run    # see what would be deleted first
+npx agentic-orchestra uninstall omp              # delete
 
-./uninstall.sh --omp --dry-run                   # aynı iş, klon üzerinden
+./uninstall.sh --omp --dry-run                   # same job, through the clone
 ```
 
-Kurulduktan sonra düzenlediğin dosyalar **silinmez**, raporlanır. `--force`
-ile silinir.
+Files you edited after installing are **not deleted**, they are reported. They
+are deleted with `--force`.
 
-`npx skills add` ile kurduysan, o CLI'ın kendi yolu var: `skills remove` ya da
-kurulum dizininden sembolik bağı kaldırmak.
+If you installed with `npx skills add`, that CLI has its own path: `skills
+remove`, or remove the symlink from the install directory.
 
-## Model yapılandırması
+## Model configuration
 
-Ajanların `model:` satırları tek başına yeterli değildir. `~/.omp/agent/config.yml`
-içindeki `task.agentModelOverrides` da rol bazlı pin uygular ve **ikisi
-çelişebilir**. Kurulum sırasında ölçülen fark:
+The `model:` lines in the agents are not enough on their own.
+`task.agentModelOverrides` in `~/.omp/agent/config.yml` also applies
+role-based pins and **the two can conflict**. The difference measured during
+installation:
 
-| Rol | `config.yml` | ajan frontmatter |
+| Role | `config.yml` | agent frontmatter |
 |---|---|---|
 | `luna-*` | `openai-codex/gpt-5.6-luna:max` | `openai-codex/gpt-6-luna:max` |
-| `space-bunny-*` | tanımlı değil | `stealth/space-bunny-alpha` |
+| `space-bunny-*` | not defined | `stealth/space-bunny-alpha` |
 
-Hangisinin kazandığını tahmin etmeyin. `docs/architecture.md` bu konunun tam
-anlatımını, `docs/troubleshooting.md` teşhis komutlarını içerir.
+Do not guess which one wins. `docs/architecture.md` has the full account of
+this, `docs/troubleshooting.md` has the diagnostic commands.
 
-OpenCode ve Claude Code tarafında model, ajan dosyasında değil runtime
-config'inde belirlenir; dönüştürücüler bu yüzden pin yazmaz.
+On the OpenCode and Claude Code side the model is determined in the runtime
+config, not in the agent file; this is why the converters do not write a pin.
 
-## Bilinen sınır: 7 skill boşluğu
+## Known limit: 7 skill gaps
 
-Ajanlar 15 skill'e yönlendirme yapıyor; 9'u burada. Kalan 7'si
-`docs/unresolved-skills.txt` içinde **beyan edilmiş** — `verify.sh` bu listeyi
-gerçek referans kümesiyle karşılaştırır, iki yönlü de sapmada da kırmızıya
-döner. Boşlukların çoğu üçüncü taraf bir repoda ya da harici bir MCP sunucusuna
-bağlı; kalan tek gerçek eksik `eresus-guard`.
+The agents reference 15 skills; 9 of them are here. The remaining 7 are
+**declared** in `docs/unresolved-skills.txt` — `verify.sh` compares that list
+against the real reference set and goes red on any two-sided deviation. Most
+of the gaps depend on a third-party repo or an external MCP server; the single
+real missing one is `eresus-guard`.
 
-## Uyumluluk notu
+## Compatibility note
 
-**Skill standardı.** Skill'ler `skills/<ad>/SKILL.md` konvansiyonunu
-kullanıyor; bu yüzden `npx skills add` tarafından bu depoda doğrudan keşfediliyor
-(doğrulandı: yerel yol ve GitHub yolu). Ek yapılandırma gerekmiyor.
+**The skill standard.** The skills use the `skills/<name>/SKILL.md` convention,
+which is why they are discovered directly by `npx skills add` in this repo
+(verified: local path and GitHub path). No extra configuration needed.
 
-**Ajan dosyaları.** OMP ↔ OpenCode ↔ Claude Code dönüşümü **zıtlık değil, biçim
-farkıdır**: üçü de aynı görevi yapar, sadece frontmatter şeması farklıdır. Bu
-yüzden dönüştürücüler var; elle kopyalamak yerine onları kullan.
+**The agent files.** OMP ↔ OpenCode ↔ Claude Code conversion is **a format
+difference, not an opposition**: all three do the same job, only the frontmatter
+schema differs. That is why the converters exist; use them instead of copying
+by hand.
 
-**İki uygulama, tek sözleşme.** Bash betikleri ve Node CLI aynı işi yapan iki
-implementasyondur: bash klonlayanlar için bağımlılıksız, Node `npx` için
-platformlar arası. Bu tekrar olmasaydı sorun olurdu, o yüzden `verify.sh`
-kontrol 12 ikisini ajan ajan, runtime runtime **byte-byte karşılaştırır**.
+**Two implementations, one contract.** The bash scripts and the Node CLI are
+two implementations doing the same work: bash is dependency-free for those who
+clone, Node is cross-platform for `npx`. This duplication would be a problem
+if it were not for `verify.sh` check 12, which compares the two **byte-for-byte,
+agent by agent, runtime by runtime**.
 
-## Lisans
+## License
 
-Boost Software License 1.0 — bkz. [LICENSE](LICENSE).
+Boost Software License 1.0 — see [LICENSE](LICENSE).

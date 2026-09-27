@@ -112,3 +112,12 @@ Report, in this order:
 
 Never emit a verdict for a clause absent from traceability. Incomplete verification is reported
 as a scope limitation, never as a partial verdict.
+
+## Hand off
+
+| You need to | Go to |
+|---|---|
+| To establish what a change actually did | `skill://empirical-validation` — it holds the proof ladder; this skill holds the clause-to-observation mapping |
+| To investigate a violated clause | `skill://debug-issue` — a violation is a defect with an unknown cause, and it gets reproduced first |
+| To locate the seam before designing the observation | `skill://context-fetch` — finding the boundary where a clause becomes observable is a search problem |
+| To have a diff reviewed rather than a spec checked | `skill://review-changes` |

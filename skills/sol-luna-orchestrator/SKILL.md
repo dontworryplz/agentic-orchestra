@@ -50,8 +50,59 @@ Sol scopes with its own first search/read, decides architecture and exact cross-
 
 Each task names objective, exact files/symbols, non-goals, constraints, shared interface, deliverable, and observable acceptance. Concurrent agents skip formatters, linters, builds, and project-wide tests; Sol runs focused and final validation after integration. Do not spawn every role mechanically.
 
-## Eresus Guard workflow
+## Pre-delegation gate
 
-Read matching skills before work (especially `eresus-autonomous`, `graft`, `empirical-validation`, and security/GSD skills when applicable). Run GSD preflight, inspect the selected finalized plan and current repository state, and trace the real authorization/tenant/resource path before delegation. Substantial implementation requires an independent dedicated security review with in-scope fixes before completion.
+Before fanning out, Sol does three things itself — not because they are hard,
+but because every one of them is cheaper to do once than to re-derive per
+subagent:
+
+1. **Preflight.** Read matching skills before work: `skill://graft` and
+   `skill://context-fetch` for navigation, `skill://empirical-validation` for
+   the proof standard the subagents will be held to, and
+   `skill://refactor-safely` when a slice is structural.
+2. **Inspect real state.** The selected finalized plan, plus the current
+   repository state — not the state the plan was written against. Dirty or
+   user-owned work in a slice's files is a partition conflict, and it is
+   cheaper to find it now than after three agents have written.
+3. **Trace the real boundary.** For any slice touching authorization, tenancy,
+   or resource ownership, trace the actual enforcement path once. A subagent
+   that has to discover where the guard lives will guess.
+
+Substantial implementation requires an independent dedicated security review
+with in-scope fixes before completion. This package ships no security-review
+procedure, so that gate is either a project-mandated agent or an external tool
+— it is not optional and it is not something a general reviewer substitutes for.
 
 Sol inspects actual changes, tests changed behavior, resolves review findings, updates persistent planning state when required, and reports evidence and residual risks. Never claim an agent ran, a model was selected, or a security pass was granted unless observed in the tool result.
+
+## Hand off
+
+Delegation is not the end of the procedure. Route the subagent to the skill its
+slice needs, by name, in the assignment:
+
+| The slice involves | The assignment must name |
+|---|---|
+| Locating code before reading it | `skill://context-fetch` |
+| A defect with an unknown cause | `skill://debug-issue` |
+| Structural change, rename, split, delete, contract change | `skill://refactor-safely` |
+| A spec, requirement set, or acceptance criteria to check | `skill://verifier` |
+| Any completion claim | `skill://empirical-validation` |
+| A diff to gate before integration | `skill://review-changes` |
+| Bounded execution inside a plan | `skill://executor` |
+| A code-graph query in an indexed repo | `skill://graft` |
+
+A task assignment that names only files and acceptance criteria leaves each
+subagent to invent its own procedure. That is the most common cause of a
+correct-looking report with no evidence behind it.
+
+## Security gates
+
+This package ships no security-review procedure, and the antigravity and luna
+reviewer agents reference `skill://eresus-guard`, which resolves to nothing
+here. The declared gaps are listed in `docs/unresolved-skills.txt`; a reference
+to a missing procedure is a **stop-and-report** condition for the subagent, not
+an invitation to improvise one.
+
+If project instructions mandate a dedicated security review, run it as a
+separate agent and treat it as mandatory. An optional second-opinion review does
+not substitute for a required gate.

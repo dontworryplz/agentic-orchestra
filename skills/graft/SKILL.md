@@ -11,8 +11,9 @@ graph of who-calls-what. Querying a node costs a few hundred tokens; rebuilding
 that understanding by reading source costs thousands, and misses the edges.
 
 Every command below is `$0`, needs no API key, and returns in under a second.
-There are six of them. **Pick the one that fits the task, run it, act on the
-answer; don't chain tools hoping for more. Most tasks need one call.**
+There are six sections below, covering seven commands — the last section is the
+lifecycle pair, not one tool. **Pick the one that fits the task, run it, act on
+the answer; don't chain tools hoping for more. Most tasks need one call.**
 
 ## Preflight: confirm the graph exists before using it
 
@@ -140,3 +141,16 @@ When the graft MCP server is connected, these are exposed as tools too:
 `graft_find_code`, `graft_find_all`, `graft_file_api`, `graft_trace_calls` (with
 `direction` / `depth`), `graft_repo_map`, `graft_check_freshness`. Use whichever surface is
 available; the guidance is identical.
+
+## Hand off
+
+| You have | Reach for |
+|---|---|
+| A graph answer that is enough to act on | Act. Do not re-verify a generated span; it is authoritative. |
+| Weak or empty hits | `skill://context-fetch` for the general discipline — one graph query usually answers; when it does not, switch surface rather than re-asking |
+| A multi-file change you are about to make | `skill://refactor-safely` — `callers --depth all` first, then the widen/migrate/narrow sequence |
+| A change you must then prove | `skill://empirical-validation` — every `file:line` you cite is a claim with an observation behind it, or it is not a citation |
+
+Graft tells you *where* the edges are. It never tells you whether the change is
+correct — that is a different procedure, and running out of graph queries is not
+the same as running out of evidence.

@@ -1,50 +1,59 @@
 # AGENTS.md
 
-Bu depoyu değiştirmeden önce oku. Repo, OMP ajan/skill dosyalarının **kaynak
-kopyasıdır**; `~/.omp/agent/agents` ve `~/.omp/skills` dağıtım hedefleridir.
+Read this before changing the repo. The repo is the **source copy** of the OMP
+agent/skill files; `~/.omp/agent/agents` and `~/.omp/skills` are the
+distribution targets.
 
-## Değişmezler
+## Invariants
 
-1. **Model pinlerini kanıtsız değiştirme.** `model:` satırları ile
-   `config.yml` `task.agentModelOverrides` çelişebilir. Hangisinin geçerli
-   olduğunu `omp models` ve gerçek bir `task` sonucuyla doğrula; ikisi
-   farklıysa ikisini de belgele.
-2. **Var olmayan skill'e yöndirme.** Ajan gövdesindeki her `skill://<ad>` ya
-   `skills/<ad>/SKILL.md` olarak var olmalı ya da bilinçli olarak kaldırılmalı.
-   `docs/skills-reference.md` bu boşluğun güncel haritasıdır — yeni bir skill
-   eklerken veya bir referansı kaldırırken güncelle.
-3. **Dil ayrımı.** `agents/*.md` ve `skills/*/SKILL.md` **İngilizce** kalır
-   (runtime prompt'larıdır, modeller bunu okur). `README.md` ve `docs/` Türkçe.
-4. **Salt-okunur roller kısa kalır.** `edit`/`write` içermeyen bir ajanın
-   gövdesine yazma yeteneği ekleme.
-5. **Hiçbir ajan `stage`/`commit` çağırmaz.** Bu kural ajan gövdelerinin
-   sözleşmesidir; gevşetme.
-6. **İki dönüştürücüyü birlikte değiştir.** `install-opencode.sh` /
-   `install-claude.sh` ile `lib/convert.mjs` aynı eşlemeleri uygular. Tek
-   tarafı değiştirmek `verify.sh` kontrol 12'yi kırmızıya döndürür — bu
-   kasıtlı. Kırmızı görürsen ya karşı tarafı da düzelt ya da kontrolü
-   gevşetme; eşlemeyi kasten ayırmak istiyorsan gerekçeyi yaz.
-7. **`skills/` konvansiyonunu koru.** `npx skills add` yapılandırma okumaz,
-   dizin yapısını okur. `skills/<ad>/SKILL.md` yerleşimini bozma; `verify.sh`
-   kontrol 13 bunu assert eder.
-8. **`bin/` giriş noktası çalıştırılabilir olmalı.** Shebang ve exec biti
-   olmadan `npx` sessizce shell'e düşüyor ve "import: command not found"
-   gibi anlaşılmaz bir hata veriyor. Bu bir kez oldu.
+1. **Do not change model pins without evidence.** The `model:` lines and
+   `config.yml` `task.agentModelOverrides` can contradict each other. Verify
+   which one is in force with `omp models` and a real `task` result; if the
+   two differ, document both.
+2. **No routing to a nonexistent skill.** Every `skill://<name>` in an agent
+   body must either exist as `skills/<name>/SKILL.md` or be deliberately
+   removed. `docs/skills-reference.md` is the current map of that gap — update
+   it when you add a skill or drop a reference.
+3. **Language split.** `agents/*.md` and `skills/*/SKILL.md` stay **English**
+   (they are runtime prompts, models read them). `README.md` and `docs/` are
+   Turkish.
+4. **Read-only roles stay small.** Do not add write capability to the body of
+   an agent that contains no `edit`/`write`.
+5. **No agent calls `stage`/`commit`.** This rule is part of the agent body
+   contract; do not relax it.
+6. **Change both converters together.** `install-opencode.sh` /
+   `install-claude.sh` and `lib/convert.mjs` apply the same mappings. Changing
+   one side turns `verify.sh` check 12 red — on purpose. If you see red, either
+   fix the other side or relax the check; if you really want to split the
+   mapping on purpose, write the rationale.
+7. **Preserve the `skills/` convention.** `npx skills add` reads no
+   configuration, it reads the directory layout. Do not break the
+   `skills/<name>/SKILL.md` layout; `verify.sh` check 13 asserts it.
+8. **Do not orphan the procedure graph.** Every skill must have a
+   `## Hand off` section and every skill must be addressed by at least one
+   other skill via `skill://`. Nine independent documents are nine separate
+   procedures; an agent invents its own way. When adding a skill, link it to an
+   existing skill, or link an existing skill to the new one. Check 15 forces
+   both. If removing a skill orphans it, update the `skill://` lines that
+   address it.
+9. **`bin/` entry points must be executable.** Without a shebang and the exec
+   bit, `npx` silently falls through to the shell and gives a confusing error
+   like "import: command not found". This happened once.
 
-## Düzen
+## Layout
 
 ```
-agents/     bir ajan = bir dosya, dosya adı = frontmatter `name`
-skills/     bir skill = bir dizin, SKILL.md frontmatter `name` = dizin adı
-docs/       bu depoya özgü gerçekler; genel ajan rehberi değil
+agents/     one agent = one file, file name = frontmatter `name`
+skills/     one skill = one directory, SKILL.md frontmatter `name` = directory name
+docs/       facts specific to this repo, not a general agent guide
 ```
 
-Ajan dosyası yeniden adlandırılırsa `docs/architecture.md` tablosu ve
-`skills/sol-luna-orchestrator/SKILL.md` yönlendirme tablosu güncellenir.
+If an agent file is renamed, the `docs/architecture.md` table and the routing
+table in `skills/sol-luna-orchestrator/SKILL.md` are updated.
 
-## Doğrulama
+## Verification
 
-Değişiklikten sonra çalıştır:
+Run after a change:
 
 ```bash
 # her şeyi tek komutta doğrula (bash tarafı, 14 kontrol)
@@ -64,17 +73,18 @@ bash -n install.sh && ./install.sh --dry-run
 PI_CODING_AGENT_DIR=/tmp/omp-verify HOME=/tmp/omp-verify-home ./install.sh
 ```
 
-`comm` çıktısı **bugün 7 skill listeler** ve bu liste
-`docs/skills-reference.md` "Durum" sütunuyla birebir eşleşmelidir. Burada
-**tanımadığın bir ad çıkarsa** ya bir skill eksik ya da dokümantasyon
-güncel değildir — ikisini de düzelt, commit'le birlikte.
+The `comm` output **lists 7 skills today** and that list must match the
+"Status" column of `docs/skills-reference.md` exactly. If **a name you do not
+recognize shows up** here, either a skill is missing or the documentation is
+stale — fix both, together with the commit.
 
-Model ID'lerini doğrulamak için `omp models` gerekir; bu bir ağ çağrısı
-yapabilir, kullanıcıdan izin alınmalıdır.
+Verifying model IDs needs `omp models`; it may make a network call, which
+requires the user's permission.
 
 ## Commit
 
-- Kurulum/doğrulama çıktısı commit'e giremez.
-- `docs/` ile `agents/` değişikliklerini tek commit'te birleştirme; model
-  pinleri, ajan metni ve dokümantasyon ayrı commit'lerde izlenebilir olsun.
-- Dosya adlarının sonundaki tire bir yazım hatası değil, depodaki gerçek addır.
+- Install/verification output must not go into a commit.
+- Do not squash `docs/` and `agents/` changes into a single commit; keep model
+  pins, agent text, and documentation traceable in separate commits.
+- The trailing dash in the name is not a typo, it is the real name in the
+  repo.

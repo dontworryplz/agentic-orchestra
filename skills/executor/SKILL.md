@@ -95,3 +95,21 @@ Return exactly these sections:
 5. `DECISION_REQUEST` — for `blocked` or `stopped`: the boundary hit, the options you saw, the single question the orchestrator must answer. Omit otherwise.
 
 Never claim a check you did not run, a result you did not observe, or a scope you did not complete.
+
+## Hand off
+
+Steps 2, 5, and the "reads two ways" stop condition are other procedures. Do not
+improvise them:
+
+| Situation | Go to |
+|---|---|
+| Enumerating callers and blast radius before you edit | `skill://refactor-safely` — it sequences the change so you do not half-migrate |
+| Turning your change into evidence before you claim it works | `skill://empirical-validation` — a check that would not fail without your change is not a check |
+| The assignment "reads two ways" and both readings are defensible | `skill://verifier` — it forces the clause into an observation and names which is unobservable |
+| A bug appears inside your slice | `skill://debug-issue` — reproduce before fixing, even under time pressure |
+| A security-relevant boundary appears mid-task | **no shipped skill.** Stop and report; this is already a stop trigger in the table above |
+| You stopped, and the next move is someone else's decision | `skill://sol-luna-orchestrator` — scope, sequencing, and partition changes are its call, not yours |
+
+The last two rows are deliberate. A gap in the procedure graph is a place to
+stop, not a place to improvise; and a decision you are not authorized to make is
+a decision request, not a judgement call.
