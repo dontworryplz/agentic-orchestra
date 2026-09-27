@@ -1,23 +1,43 @@
 ---
 name: sol-luna-orchestrator
-description: "Use GPT-6 Sol as conductor, GPT-6 Luna as default specialist, and selected Antigravity agents for complementary large-context exploration, bounded implementation, and independent deep review."
+description: "Use GPT-6 Sol as conductor, GPT-6 Luna as default specialist, Space Bunny and Antigravity agents for complementary large-context exploration, bounded implementation, and independent deep review."
 ---
 
 # GPT-6 Sol / GPT-6 Luna Orchestra
 
+## Preflight: read the live model wiring first
+
+Do not route work from memory. Before the first delegation, read the two places
+that actually decide models:
+
+1. `~/.omp/agent/config.yml` — `modelRoles` (root roles) and
+   `task.agentModelOverrides` (per-role pins for subagents).
+2. The `agents/*.md` frontmatter in this orchestra — each file's `model:` line.
+
+These two can disagree, and the disagreement is the runtime's business, not
+yours to guess at. Report the observed value; never state a model you did not
+read. If a role appears in `agentModelOverrides` with a different ID than its
+agent file, say both and treat the pin as unverified until a real `task` result
+shows which one ran.
+
+Confirm a model ID exists before routing to it (`omp models`). A model listed in
+a provider catalog is not an invocable `task` role.
+
 ## Model topology
 
-- **Conductor:** the active root session is `openai-codex/gpt-6-sol`. Sol owns interpretation, architecture, decomposition, cross-slice contracts, integration, final verification, and delivery. A skill cannot switch the root model; report a mismatch rather than claiming it is.
-- **Default specialists:** GPT-6 Luna (`gpt-6-luna`) for exploration, research, implementation, testing, and independent review. `.codex/config.toml` and `.codex/agents/{explorer,worker,tester,researcher,reviewer}.toml` pin Luna/max for Codex roles. OMP `task` selects an agent role, not an arbitrary model ID; do not invent a `model` argument or claim an unverified runtime model.
+- **Conductor:** the root session model, expected `openai-codex/gpt-6-sol`. Sol owns interpretation, architecture, decomposition, cross-slice contracts, integration, final verification, and delivery. A skill cannot switch the root model; report a mismatch rather than claiming it is.
+- **Default specialists:** GPT-6 Luna (`gpt-6-luna`, 272K context) for exploration, research, implementation, testing, and independent review. OMP `task` selects an agent role, not an arbitrary model ID; do not invent a `model` argument or claim an unverified runtime model.
+- **Space Bunny is the long-context alternate, not a default.** `space-bunny-worker` and `space-bunny-reviewer` (`stealth/space-bunny-alpha`, 1M context) take over only when a slice or review genuinely exceeds what Luna can hold in one pass, or when a second vendor's judgment is wanted. Below that threshold Luna is the cheaper, faster default.
 - **Antigravity supports Luna, not replaces it.** Select an available specialist only for a complementary, independent task. Its output is evidence or a bounded patch; Luna or Sol validates and integrates it. Do not spawn a model merely because it is listed in a provider catalog.
 
 ## Task-to-agent routing
 
-| Task | Default | Optional Antigravity specialist | Why / boundary |
+| Task | Default | Optional specialist | Why / boundary |
 |---|---|---|---|
 | Broad, read-only repository mapping or large logs/docs | `luna-explorer` (or runtime-required `scout` for exploratory codebase research) | `antigravity-gemini-explorer` → Gemini 3.8 Flash, 1M context | Fast compression of a genuinely large read set. Read-only; Sol/Luna verifies decisive source lines. |
-| Bounded independent implementation with disjoint file ownership | `luna-worker` | `antigravity-sonnet-worker` → Claude Sonnet 4.6, 250K context | Separate coding slice only when useful parallelism exists. No shared-file edits, no mid-flight project-wide validation. |
-| Deep independent architecture, security, or correctness review | `luna-reviewer` | `antigravity-opus-reviewer` → Claude Opus 4.6, 250K context | Second opinion for high-risk flows or contested design. Read-only; evidence-backed blockers must be fixed before delivery. |
+| Bounded independent implementation with disjoint file ownership | `luna-worker` | `antigravity-sonnet-worker` → Claude Sonnet 4.6, 250K context · `space-bunny-worker` → Space Bunny, 1M context | Separate coding slice only when useful parallelism exists. No shared-file edits, no mid-flight project-wide validation. |
+| Deep independent architecture, security, or correctness review | `luna-reviewer` | `antigravity-opus-reviewer` → Claude Opus 4.6, 250K context · `space-bunny-reviewer` → Space Bunny, 1M context | Second opinion for high-risk flows or contested design. Read-only; evidence-backed blockers must be fixed before delivery. |
+| Slice or review too large for one Luna pass | `space-bunny-worker` / `space-bunny-reviewer` | None needed | Use when the read set does not fit 272K. Escalating to Space Bunny for a small diff wastes budget and adds no signal. |
 | Version-specific research or empirical testing | `luna-researcher` / `luna-tester` | None required by default | Use primary sources and actual execution; do not replace a test with a model opinion. |
 
 Gemini 3.1 Pro (1M context) may be useful for visual/very-long multimodal analysis **only if a matching runtime agent is configured and verified**. The provider list alone does not make it an invocable `task` role. Likewise, Flash-lite, image, older Claude/Gemini, GPT-OSS, and tab-preview entries are not automatically assigned work. Choose by required capability and available agent role, not model count or context size. When an Antigravity provider returns `429 RESOURCE_EXHAUSTED`, report the unavailable slot and use an available qualified role; never fabricate its review.

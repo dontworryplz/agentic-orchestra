@@ -1,6 +1,6 @@
 ---
 name: graft
-description: "This repo is indexed by graft/. Query the graph for context, call traces, blast radius, or API skeletons before grepping or reading files."
+description: "Query a graft/ code graph for context, call traces, blast radius, or API skeletons before grepping or reading files. Only applies in a repo that has a graft/ index or the graft MCP server connected; run the preflight below first and fall back to grep when it is not."
 ---
 
 # graft
@@ -13,6 +13,24 @@ that understanding by reading source costs thousands, and misses the edges.
 Every command below is `$0`, needs no API key, and returns in under a second.
 There are six of them. **Pick the one that fits the task, run it, act on the
 answer; don't chain tools hoping for more. Most tasks need one call.**
+
+## Preflight: confirm the graph exists before using it
+
+This skill only pays off in an indexed repo. Check once, cheaply, before the
+first query:
+
+1. Is there a `graft/` directory at the repo root? (`glob graft/**` or `ls`.)
+2. Or is the graft MCP server connected — are `graft_find_code`,
+   `graft_repo_map`, or `graft_check_freshness` available as tools?
+
+If **either** is true, this skill applies; use the tools below.
+If **neither** is true, graft has no index for this repo. Do not narrate graft
+guidance and do not claim graph evidence you did not get. Fall back in this
+order: the repo's own connected code-graph MCP server if one exists (for
+example `codebase-memory-mcp`, `gitnexus`), then `grep`/`glob`, then targeted
+`read`. Say which surface you actually used.
+
+A `graft/` directory in a *sibling* repo does not index the repo you are in.
 
 ## The tools
 
