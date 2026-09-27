@@ -1,0 +1,67 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shellcheck-ish syntax gate
+        run: |
+          set -euo pipefail
+          for s in install.sh install-opencode.sh install-claude.sh uninstall.sh verify.sh; do
+            bash -n "$s"
+            echo "ok  $s"
+          done
+
+      - name: Repo invariants and installer smoke test
+        run: ./verify.sh
+
+      - name: Every agent converts for every runtime
+        run: |
+          set -euo pipefail
+          for f in agents/*.md; do
+            n="$(basename "$f" .md)"
+            for rt in opencode claude; do
+              echo "--- $n -> $rt"
+              ./install-$rt.sh --show "$n" 2>&1 | head -12
+            done
+          done
+
+      - name: Skill frontmatter shape
+        run: |
+          set -euo pipefail
+          for f in skills/*/SKILL.md; do
+            name="$(awk '/^name:/{sub(/^name: */,""); print; exit}' "$f")"
+            desc="$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$f")"
+            dir="$(basename "$(dirname "$f")")"
+            [ "$name" = "$dir" ] || { echo "name mismatch in $f"; exit 1; }
+            [ -n "$desc" ] || { echo "empty description in $f"; exit 1; }
+            echo "ok  $dir"
+          done
+
+      - name: Unattributed-file guard
+        run: |
+          set -euo pipefail
+          # Nothing outside the known layout may land in the repo.
+          git status --porcelain
+          find . -type f \
+            -not -path './.git/*' \
+            -not -path './agents/*' \
+            -not -path './skills/*' \
+            -not -path './docs/*' \
+            -not -path './.github/*' \
+            -not -name '*.sh' \
+            -not -name 'README.md' \
+            -not -name 'AGENTS.md' \
+            -not -name 'CHANGELOG.md' \
+            -not -name 'LICENSE' \
+            | grep . && { echo "unexpected file in repo root"; exit 1; } || echo "ok  layout clean"
