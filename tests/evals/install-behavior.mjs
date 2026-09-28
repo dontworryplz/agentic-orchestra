@@ -168,6 +168,27 @@ check('three providers install in one operation', () => {
   return 'matrix + 3 providers';
 });
 
+check('uninstall removes only our rules block', () => {
+  run(['install', 'generic', '--components', 'rules', '--scope', 'global']);
+  const target = path.join(home, 'AGENTS.md');
+  assert(existsSync(target), 'rules block was not installed');
+  assert(readFileSync(target, 'utf8').includes('agentic-orchestra:begin'), 'marker missing');
+  run(['uninstall', 'generic', '--scope', 'global']);
+  assert(!existsSync(target), 'file holding only our block was not removed');
+  return 'block removed';
+});
+
+check('uninstall preserves user content around our block', () => {
+  const target = path.join(home, 'AGENTS.md');
+  writeFileSync(target, '# Mine\n');
+  run(['install', 'generic', '--components', 'rules', '--scope', 'global']);
+  run(['uninstall', 'generic', '--scope', 'global']);
+  const text = readFileSync(target, 'utf8');
+  assert(text.includes('# Mine'), 'user content was destroyed');
+  assert(!text.includes('agentic-orchestra:begin'), 'our block survived uninstall');
+  return 'user content kept';
+});
+
 check('an agentless runtime says so rather than pretending', () => {
   const out = run(['install', 'codex']).stdout;
   assert(/not supported/.test(out), `codex did not report that it takes no agents:\n${out}`);

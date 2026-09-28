@@ -10,7 +10,7 @@ export const gemini = new RuntimeAdapter({
   id: 'gemini',
   displayName: 'Gemini CLI',
   binaryNames: ['gemini'],
-  capabilities: { skills: true, agents: false, subagents: false, commands: false, rules: false, instructions: true, mcp: true, hooks: false },
+  capabilities: { skills: true, agents: false, subagents: false, commands: false, rules: false, instructions: true, mcp: true, hooks: true },
   scopes: ['user', 'project'],
   nativeSupport: 'rules-wrapper',
   notes: 'Agents render as GEMINI.md instruction blocks; skills install natively.',

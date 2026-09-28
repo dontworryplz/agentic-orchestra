@@ -61,7 +61,8 @@
       "skills": { "project": ".agents/skills", "global": "~/.gemini/skills" },
       "agents": { "support": "rules-wrapper", "format": "gemini-md", "reason": "no verified native agent format; agents render as GEMINI.md instruction blocks, skills install natively" },
       "scopes": ["project", "global"],
-      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": false, "instructions": true, "mcp": true, "hooks": false }
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": false, "instructions": true, "mcp": true, "hooks": true },
+      "verifiedLive": { "globalSkills": "~/.gemini/skills/<name>/SKILL.md", "hooks": "settings.json hooks (BeforeTool/SessionStart observed)", "mcp": "settings.json mcpServers observed" }
     },
     {
       "id": "copilot",

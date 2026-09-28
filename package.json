@@ -1,7 +1,7 @@
 {
   "name": "agentic-orchestra",
   "version": "0.4.0",
-  "description": "One AI-agent toolkit for every coding CLI: 13 canonical agents, 10 skills incl. llm-sast-scanner, 12 provider adapters, multi-select installer.",
+  "description": "One AI-agent toolkit for every coding CLI: 13 canonical agents, 11 skills incl. security-review, 12 provider adapters, multi-select installer.",
   "license": "BSL-1.0",
   "type": "module",
   "bin": {

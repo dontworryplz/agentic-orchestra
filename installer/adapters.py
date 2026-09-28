@@ -207,7 +207,7 @@ def install_provider(pid: str, *, scope: str, components: set[str], options: dic
         # "sast" alone means only the SAST skill. Without this filter the flag
         # installs all ten skills, which is exactly the kind of silent scope
         # creep a component selection exists to prevent.
-        wanted = core_skills() if "skills" in components else ["llm-sast-scanner"]
+        wanted = core_skills() if "skills" in components else ["security-review"]
         for name in wanted:
             src = REPO / "core" / "skills" / name
             dest = skills_dir / name
@@ -242,6 +242,12 @@ def install_provider(pid: str, *, scope: str, components: set[str], options: dic
         support = provider["agents"]["support"]
         if support == "skills-only":
             warnings.append(f"{provider['displayName']} takes skills, not task agents — agents skipped by name")
+        elif support == "rules-wrapper" and not provider["agents"].get(scope if scope != "both" else "project"):
+            # No agent directory for this scope: the roles are covered by the
+            # rules/instruction merge below, not by per-agent files. Say so
+            # instead of crashing on a missing registry key.
+            warnings.append(f"{provider['displayName']} has no agent directory for scope '{scope}' — "
+                            "roles install via the rules/instruction merge")
         else:
             agents_dir = resolve_dir(provider["agents"][scope if scope != "both" else "project"], "project" if scope == "both" else scope, cwd, home)
             # "both" installs agents to project AND global
@@ -282,6 +288,10 @@ def _dir_matches(src: Path, dest: Path) -> bool:
 MARK_BEGIN = "<!-- agentic-orchestra:begin -->"
 MARK_END = "<!-- agentic-orchestra:end -->"
 
+RULES_FILENAMES = {"gemini": "GEMINI.md", "copilot": "muse-instructions.md"}
+
+DEFAULT_RULES_FILE = "AGENTS.md"
+
 
 def merge_rules_file(pid: str, scope: str, cwd: Path, home: Path,
                      dry_run: bool, force: bool, counts: dict, warnings: list) -> None:
@@ -289,7 +299,7 @@ def merge_rules_file(pid: str, scope: str, cwd: Path, home: Path,
     or replace only our own block. Everything outside the markers is preserved
     byte-for-byte, and a backup is written before any change."""
     provider = get_provider(pid)
-    filename = {"gemini": "GEMINI.md", "copilot": "muse-instructions.md"}.get(pid, "AGENTS.md")
+    filename = RULES_FILENAMES.get(pid, DEFAULT_RULES_FILE)
     dest = (cwd if scope == "project" else home) / filename
     if scope == "both":
         for s in ("project", "global"):
@@ -331,3 +341,111 @@ def merge_rules_file(pid: str, scope: str, cwd: Path, home: Path,
     dest.write_text(new)
     print(f"  + {dest} ({action}; backup kept, unrelated content preserved)")
     counts["written"] += 1
+
+
+def unmerge_rules_file(pid: str, scope: str, cwd: Path, home: Path,
+                       dry_run: bool, counts: dict) -> None:
+    """Remove only our marked block from the provider's rules file. Everything
+    outside the markers is preserved byte-for-byte. If nothing but our block
+    remains, the file is removed instead of leaving an empty shell."""
+    filename = RULES_FILENAMES.get(pid, DEFAULT_RULES_FILE)
+    if scope == "both":
+        for s in ("project", "global"):
+            unmerge_rules_file(pid, s, cwd, home, dry_run, counts)
+        return
+    dest = (cwd if scope == "project" else home) / filename
+    if not dest.exists() or MARK_BEGIN not in dest.read_text():
+        print(f"  - {dest} (absent)")
+        counts["skipped"] += 1
+        return
+    existing = dest.read_text()
+    parts = existing.split(MARK_BEGIN)
+    kept = parts[0]
+    for tail in parts[1:]:
+        _, _, after = tail.partition(MARK_END)
+        kept += after
+    new = kept.strip()
+    if dry_run:
+        print(f"  x {dest} (remove our block, dry-run; unrelated content preserved)")
+        counts["removed"] += 1
+        return
+    if not new:
+        dest.unlink()
+        print(f"  x {dest} (only our block remained; file removed)")
+    else:
+        dest.write_text(new + "\n")
+        print(f"  x {dest} (our block removed, unrelated content preserved)")
+    counts["removed"] += 1
+
+
+def uninstall_provider(pid: str, *, scope: str, cwd: Path, home: Path,
+                       dry_run: bool = False, force: bool = False) -> dict:
+    """Remove what install_provider added for one provider. Agent and skill
+    files go only when they still match what we would install (or --force);
+    foreign files are never touched. Returns counts."""
+    from convert import convert as _convert  # noqa: E402
+
+    provider = get_provider(pid, home)
+    counts = {"removed": 0, "kept": 0, "skipped": 0}
+
+    scopes = ("project", "global") if scope == "both" else (scope,)
+    for sc in scopes:
+        # Agents: remove only files identical to what we would install.
+        support = provider["agents"]["support"]
+        if support not in ("skills-only",) and provider["agents"].get(sc):
+            agents_dir = resolve_dir(provider["agents"][sc], sc, cwd, home)
+            for src in core_agents():
+                dest = agents_dir / agent_filename(provider, src.stem)
+                if not dest.exists():
+                    counts["skipped"] += 1
+                    continue
+                try:
+                    expected, _ = render_agent(provider, src.read_text(), {})
+                except ValueError:
+                    expected = src.read_text()
+                if not force and dest.read_text() != expected:
+                    print(f"  ! {dest} modified since install — left in place (use --force to remove)")
+                    counts["kept"] += 1
+                    continue
+                if dry_run:
+                    print(f"  x {dest} (dry-run)")
+                else:
+                    dest.unlink()
+                counts["removed"] += 1
+        # Skills: remove only directories identical to ours.
+        try:
+            skills_template = provider["skills"][sc]
+        except (KeyError, TypeError):
+            skills_template = None
+        if skills_template:
+            skills_dir = resolve_dir(skills_template, sc, cwd, home)
+            for name in core_skills():
+                dest = skills_dir / name
+                if pid == "cursor":
+                    rule = skills_dir / f"{name}.mdc"
+                    if not rule.exists():
+                        counts["skipped"] += 1
+                        continue
+                    if dry_run:
+                        print(f"  x {rule} (dry-run)")
+                    else:
+                        rule.unlink()
+                    counts["removed"] += 1
+                    continue
+                if not dest.exists():
+                    counts["skipped"] += 1
+                    continue
+                if not force and not _dir_matches(REPO / "core" / "skills" / name, dest):
+                    print(f"  ! {dest} modified since install — left in place (use --force to remove)")
+                    counts["kept"] += 1
+                    continue
+                if dry_run:
+                    print(f"  x {dest}/ (dry-run)")
+                else:
+                    import shutil as _shutil
+                    _shutil.rmtree(dest)
+                counts["removed"] += 1
+        # Rules merge: remove only our marked block.
+        unmerge_rules_file(pid, sc, cwd, home, dry_run, counts)
+
+    return {"counts": counts}

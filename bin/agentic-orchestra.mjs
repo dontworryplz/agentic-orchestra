@@ -250,7 +250,7 @@ function installOne(runtime, root, opts, convertOptions) {
   }
 
   if (!opts.agentsOnly) {
-    const wanted = opts.sastOnly ? listSkills(root).filter((s) => s === 'llm-sast-scanner') : listSkills(root);
+    const wanted = opts.sastOnly ? listSkills(root).filter((s) => s === 'security-review') : listSkills(root);
     for (const skill of wanted) {
       if (runtime === 'cursor') {
         // A skill is a procedure, which is what a Cursor rule is. Same shape as
@@ -473,8 +473,42 @@ function uninstallOne(runtime, root, opts) {
     removed += 1;
   }
 
+  const unmerged = unmergeRulesFile(runtime, opts);
+  removed += unmerged.removed;
+  absent += unmerged.absent;
+
   log(`  removed=${removed}  kept(modified)=${kept}  absent=${absent}`);
   return { removed, kept, absent };
+}
+
+// Remove only our marked block from the provider's rules file, preserving
+// everything outside the markers byte-for-byte. Mirrors mergeRulesFile and
+// installer/adapters.py::unmerge_rules_file.
+function unmergeRulesFile(runtime, opts) {
+  const filename = runtime === 'gemini' ? 'GEMINI.md' : runtime === 'copilot' ? 'muse-instructions.md' : 'AGENTS.md';
+  const dest = opts.project ? path.join(process.cwd(), filename) : path.join(repoHome(), filename);
+  if (!existsSync(dest) || !readFileSync(dest, 'utf8').includes(RULES_BEGIN)) {
+    log(`  - ${dest} (absent)`);
+    return { removed: 0, absent: 1 };
+  }
+  const existing = readFileSync(dest, 'utf8');
+  const kept = existing.split(RULES_BEGIN).map((chunk, i) => {
+    if (i === 0) return chunk;
+    const end = chunk.indexOf(RULES_END);
+    return end === -1 ? chunk : chunk.slice(end + RULES_END.length);
+  }).join('');
+  if (opts.dryRun) {
+    log(`  x ${dest} (remove our block, dry-run; unrelated content preserved)`);
+    return { removed: 1, absent: 0 };
+  }
+  if (!kept.trim()) {
+    rmSync(dest, { force: true });
+    log(`  x ${dest} (only our block remained; file removed)`);
+  } else {
+    writeFileSync(dest, `${kept.trim()}\n`);
+    log(`  x ${dest} (our block removed, unrelated content preserved)`);
+  }
+  return { removed: 1, absent: 0 };
 }
 
 async function main(argv) {
@@ -627,8 +661,13 @@ async function main(argv) {
 
   if (opts.command === 'uninstall') {
     const runtimes = resolveRuntimes(opts.runtimes, opts);
+    const uninstallScope = opts.scope || (opts.project ? 'project' : 'global');
+    if (!['project', 'global', 'both'].includes(uninstallScope)) fail(`unknown scope '${uninstallScope}'`);
+    const scopes = uninstallScope === 'both' ? ['project', 'global'] : [uninstallScope];
     log(`agentic-orchestra uninstaller${opts.dryRun ? ' (dry-run)' : ''}`);
-    for (const runtime of runtimes) uninstallOne(runtime, root, opts);
+    for (const runtime of runtimes) {
+      for (const scope of scopes) uninstallOne(runtime, root, { ...opts, project: scope === 'project' });
+    }
     return 0;
   }
 

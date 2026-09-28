@@ -24,7 +24,7 @@ from adapters import all_providers, detect, get_provider, install_provider  # no
 COMPONENTS = [
     ("agents", "Agent definitions (roles that delegate and report)"),
     ("skills", "Skill procedures (numbered steps an agent follows)"),
-    ("sast", "Security/SAST skill (llm-sast-scanner + security-reviewer routing)"),
+    ("sast", "Security/SAST skill (security-review + security-reviewer routing)"),
     ("commands", "Slash commands"),
     ("rules", "Rules / instruction files (AGENTS.md, GEMINI.md, .mdc)"),
     ("mcp", "MCP server configuration"),

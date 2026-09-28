@@ -108,7 +108,7 @@ skill instructions:
 
 - Any code/diff review: `skill://review-changes`
 - GSD phase or plan review: `skill://gsd-code-review`
-- Security-sensitive scope: `skill://llm-sast-scanner` for the taint-trace procedure. Findings it cannot evidence go back to the conductor, not into the report.
+- Security-sensitive scope: `skill://security-review` for the taint-trace procedure. Findings it cannot evidence go back to the conductor, not into the report.
 - Call graph or blast radius: `skill://graft`
 - Proof quality or completion claims: `skill://empirical-validation`
 - Human-facing prose/doc review: `skill://no-ai-slop`

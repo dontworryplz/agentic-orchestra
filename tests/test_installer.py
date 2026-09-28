@@ -83,7 +83,7 @@ class SingleProvider(unittest.TestCase):
             agents = list((home / ".omp" / "agent" / "agents").glob("*.md"))
             skills = list((home / ".omp" / "skills").iterdir())
             self.assertEqual(len(agents), 13, f"expected 13 agents, got {len(agents)}")
-            self.assertEqual(len(skills), 10, f"expected 10 skills, got {len(skills)}")
+            self.assertEqual(len(skills), 11, f"expected 11 skills, got {len(skills)}")
             self.assertEqual(res["counts"]["blocked"], 0)
         finally:
             destroy(home, cwd)
@@ -164,6 +164,18 @@ class MergeSafety(unittest.TestCase):
             destroy(home, cwd)
 
 
+class WrapperScopes(unittest.TestCase):
+    def test_wrapper_provider_without_agent_dir_does_not_crash(self):
+        home, cwd = make_env()
+        try:
+            res = install_provider("gemini", scope="global", components={"agents", "skills", "sast"},
+                                   options=OPTS, cwd=cwd, home=home)
+            self.assertTrue((home / ".gemini" / "skills" / "security-review").exists())
+            self.assertTrue(any("no agent directory" in w for w in res["warnings"]))
+        finally:
+            destroy(home, cwd)
+
+
 class Fallback(unittest.TestCase):
     def test_codex_refuses_agents_by_name(self):
         with self.assertRaises(ValueError) as ctx:
@@ -214,27 +226,62 @@ class SastIntegration(unittest.TestCase):
         try:
             install_provider("claude-code", scope="global", components={"sast"},
                              options=OPTS, cwd=cwd, home=home)
-            sast = home / ".claude" / "skills" / "llm-sast-scanner"
+            sast = home / ".claude" / "skills" / "security-review"
             self.assertTrue((sast / "SKILL.md").exists())
             self.assertTrue((sast / "references" / "sql_injection.md").exists())
             # But nothing else was installed.
             self.assertEqual(sorted(d.name for d in (home / ".claude" / "skills").iterdir()),
-                             ["llm-sast-scanner"])
+                             ["security-review"])
         finally:
             destroy(home, cwd)
 
     def test_security_reviewer_routes_to_the_sast_skill(self):
         src = (REPO / "core" / "agents" / "security-reviewer.md").read_text()
-        self.assertIn("skill://llm-sast-scanner", src)
-        sast = REPO / "core" / "skills" / "llm-sast-scanner" / "SKILL.md"
+        self.assertIn("skill://security-review", src)
+        sast = REPO / "core" / "skills" / "security-review" / "SKILL.md"
         self.assertTrue(sast.exists())
         self.assertTrue((sast.parent / "references").is_dir())
 
     def test_sast_references_resolve(self):
-        refs = REPO / "core" / "skills" / "llm-sast-scanner" / "references"
+        refs = REPO / "core" / "skills" / "security-review" / "references"
         missing = [f for f in refs.glob("*.md") if not f.exists()]
         self.assertEqual(missing, [])
         self.assertGreaterEqual(len(list(refs.glob("*.md"))), 30)
+
+
+class RulesUnmerge(unittest.TestCase):
+    def test_uninstall_removes_only_our_block(self):
+        from adapters import merge_rules_file, uninstall_provider
+        home, cwd = make_env()
+        try:
+            target = cwd / "AGENTS.md"
+            target.write_text("# My project\n\nMy own rules.\n")
+            counts = {"written": 0, "skipped": 0, "blocked": 0}
+            merge_rules_file("amp", "project", cwd, home, dry_run=False, force=False,
+                             counts=counts, warnings=[])
+            self.assertIn("agentic-orchestra:begin", target.read_text())
+            res = uninstall_provider("amp", scope="project", cwd=cwd, home=home)
+            text = target.read_text()
+            self.assertNotIn("agentic-orchestra:begin", text)
+            self.assertIn("# My project", text)
+            self.assertIn("My own rules.", text)
+            self.assertEqual(res["counts"]["removed"], 1)
+        finally:
+            destroy(home, cwd)
+
+    def test_uninstall_removes_file_holding_only_our_block(self):
+        from adapters import merge_rules_file, uninstall_provider
+        home, cwd = make_env()
+        try:
+            counts = {"written": 0, "skipped": 0, "blocked": 0}
+            merge_rules_file("amp", "project", cwd, home, dry_run=False, force=False,
+                             counts=counts, warnings=[])
+            target = cwd / "AGENTS.md"
+            self.assertTrue(target.exists())
+            uninstall_provider("amp", scope="project", cwd=cwd, home=home)
+            self.assertFalse(target.exists())
+        finally:
+            destroy(home, cwd)
 
 
 class Uninstall(unittest.TestCase):

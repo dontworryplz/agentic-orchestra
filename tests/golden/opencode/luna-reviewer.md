@@ -27,7 +27,7 @@ For every finding include severity, exact file or symbol, why it matters, and a 
 
 Skill routing: read matching skill before review. Use
 `skill://review-changes` for diffs, `skill://gsd-code-review` for GSD plans,
-for security-sensitive scope: `skill://llm-sast-scanner` for the taint-trace procedure, `skill://graft` for caller
+for security-sensitive scope: `skill://security-review` for the taint-trace procedure, `skill://graft` for caller
 and blast-radius evidence, and `skill://empirical-validation` for proof quality.
 Use `skill://no-ai-slop` for human-facing docs and `skill://caveman` lite for
 the final report. Do not load unrelated skills.
