@@ -51,6 +51,30 @@ for f in agents/*.md skills/*/SKILL.md; do
 done
 [ "$fm_bad" -eq 0 ] && ok "all $(ls agents/*.md skills/*/SKILL.md | wc -l | tr -d ' ') runtime files have frontmatter"
 
+# --- 1b. No directory nested inside a runtime directory -----------------------
+# A stray `agents/agents/` once shipped in this repository: a duplicate of every
+# agent definition, tracked and pushed, because a nested directory is not a `.md`
+# file so no existing check looked at it. Every installer and every test walks
+# agents/*.md and silently ignores it, so the duplicate sat there looking
+# harmless while the repository showed twelve roles twice.
+#
+# Break it: mkdir agents/agents and copy a file in.
+note_check "no nested directories in the runtime folders"
+nest_bad=0
+for d in agents/*/ ; do
+  [ -d "$d" ] || continue
+  bad "agents/$(basename "$d")/ is a directory inside agents/ — this duplicates the agent set"
+  nest_bad=1
+done
+for d in skills/*/*/ ; do
+  [ -d "$d" ] || continue
+  bad "$(dirname "$d")/$(basename "$d")/ nests a directory inside a skill"
+  nest_bad=1
+done
+if [ "$nest_bad" -eq 0 ]; then
+  ok "agents/ holds files only; skills/ holds SKILL.md files and their own references only"
+fi
+
 # --- 2. name matches its file/directory name ---------------------------------
 # Break it: rename a file without editing its frontmatter name.
 note_check "name matches location"

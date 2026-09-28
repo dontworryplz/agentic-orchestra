@@ -11,6 +11,7 @@
 //   npx agentic-orchestra show luna-worker --runtime opencode
 //   npx agentic-orchestra doctor
 
+import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -18,6 +19,7 @@ import process from 'node:process';
 import { convert } from '../lib/convert.mjs';
 import { parseFrontmatter } from '../lib/frontmatter.mjs';
 import { AGENTLESS_RUNTIMES, isRuntimeInstalled, repoRoot, resolvePaths, RUNTIMES } from '../lib/paths.mjs';
+import { driftFor, isClean, summarize } from '../lib/drift.mjs';
 import { runChecks } from '../lib/verify.mjs';
 
 const VERSION = '0.3.0';
@@ -118,7 +120,7 @@ function parseArgs(argv) {
       continue;
     }
     if (arg.startsWith('-')) fail(`unknown option '${arg}' (try --help)`);
-    if (['install', 'uninstall', 'verify', 'list', 'show', 'doctor', 'help'].includes(arg) && opts.runtimes.length === 0 && opts.command === 'install') {
+    if (['install', 'uninstall', 'update', 'drift', 'verify', 'list', 'show', 'doctor', 'help'].includes(arg) && opts.runtimes.length === 0 && opts.command === 'install') {
       opts.command = arg;
       continue;
     }
@@ -404,6 +406,64 @@ function main(argv) {
     return 0;
   }
 
+  if (opts.command === 'update') {
+    const runtimes = resolveRuntimes(opts.runtimes, opts);
+    log(`agentic-orchestra ${VERSION} update`);
+    let staleTotal = 0;
+    let localTotal = 0;
+    for (const runtime of runtimes) {
+      const report = driftFor(runtime, root, { project: opts.project });
+      log(`\n${runtime}`);
+      for (const f of report.stale) log(`  update  ${f}`);
+      for (const f of report.absent) log(`  add     ${f}`);
+      for (const f of report.extra) log(`  remove  ${f} (no longer in this version)`);
+      for (const f of report.local) log(`  keep    ${f} (edited locally, not ours to overwrite)`);
+      if (report.current.length) log(`  =       ${report.current.length} already current`);
+      staleTotal += report.stale.length + report.absent.length + report.extra.length;
+      localTotal += report.local.length;
+
+      if (opts.dryRun) {
+        log('  (dry-run: nothing written)');
+        continue;
+      }
+      // Reuse the installer's own non-clobbering contract rather than writing
+      // files here, so `update` and `install` can never disagree about what
+      // "don't touch my edits" means.
+      const flags = ['--yes'];
+      if (opts.project) flags.push('--project');
+      if (opts.force) flags.push('--force');
+      if (opts.agentsOnly) flags.push('--agents-only');
+      if (opts.skillsOnly) flags.push('--skills-only');
+      const res = spawnSync(process.execPath, [path.join(root, 'bin', 'agentic-orchestra.mjs'), 'install', runtime, ...flags], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        encoding: 'utf8',
+      });
+      process.stdout.write(res.stdout || '');
+      process.stderr.write(res.stderr || '');
+    }
+    log('');
+    log(staleTotal === 0 ? 'already up to date' : `${staleTotal} item(s) updated`);
+    if (localTotal) log(`${localTotal} locally edited file(s) were left alone; --force overwrites them`);
+    return 0;
+  }
+
+  if (opts.command === 'drift') {
+    const runtimes = resolveRuntimes(opts.runtimes, opts);
+    let dirty = 0;
+    for (const runtime of runtimes) {
+      const report = driftFor(runtime, root, { project: opts.project });
+      log(summarize(report));
+      for (const f of report.stale) log(`  stale   ${f}`);
+      for (const f of report.local) log(`  local   ${f}  (edited since install)`);
+      for (const f of report.extra) log(`  extra   ${f}  (no longer shipped)`);
+      for (const f of report.absent) log(`  missing ${f}`);
+      if (!isClean(report)) dirty += 1;
+    }
+    log('');
+    log(dirty === 0 ? 'every runtime is current' : `${dirty} runtime(s) differ from this version; run: npx agentic-orchestra update`);
+    return dirty === 0 ? 0 : 1;
+  }
+
   if (opts.command === 'doctor') {
     log(`agentic-orchestra ${VERSION}`);
     log(`  repo: ${root}`);
@@ -415,6 +475,11 @@ function main(argv) {
       log(`  skills ${state.skills ? 'present' : 'absent '}  ${state.skillsDir}`);
       const installed = state.agents ? readdirSync(state.agentsDir).filter((f) => f.endsWith('.md')).length : 0;
       log(`  agent files present: ${installed}`);
+      if (state.agents || state.skills) {
+        const report = driftFor(runtime, root, { project: opts.project });
+        log(`  drift: ${report.current.length} current, ${report.stale.length} stale, ` +
+            `${report.local.length} local, ${report.extra.length} extra, ${report.absent.length} missing`);
+      }
     }
     log('');
     log(`  node ${process.version}`);
