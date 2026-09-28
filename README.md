@@ -51,8 +51,17 @@ install.sh                     install for OMP (idempotent, never clobbers)
 install-opencode.sh            OMP → OpenCode converter
 install-claude.sh              OMP → Claude Code converter
 uninstall.sh                   removes what was installed; leaves edited files alone
-verify.sh                      16 checks + isolated-HOME install smoke test
-tools/check-spawn-graph.mjs    asserts the nested-spawn graph is acyclic and bounded
+verify.sh                      21 checks: invariants, converters, evals, install smoke test
+tools/
+  check-spawn-graph.mjs        asserts the nested-spawn graph is acyclic and bounded
+  golden.mjs                   compares every conversion to a reviewed golden
+  read-list.awk                reads both OMP frontmatter shapes for a list value
+tests/
+  golden/                      reviewed expected conversions, one per agent per runtime
+  evals/
+    contract.mjs               static: are the skills' and agents' contracts declared
+    install-behavior.mjs       update, drift, and the non-clobber contract
+    live.mjs                   opt-in: run a real agent, assert it obeyed its contract
 
 docs/
   architecture.md              layers, roles, model wiring
@@ -116,7 +125,9 @@ npx agentic-orchestra install omp          # OMP only
 npx agentic-orchestra install all --dry-run
 npx agentic-orchestra list                 # 10 agents + 9 skills
 npx agentic-orchestra show luna-worker --runtime opencode
-npx agentic-orchestra doctor               # show runtimes and state
+npx agentic-orchestra doctor               # show runtimes, state, and drift
+npx agentic-orchestra drift                # what is stale, edited, missing, or not ours
+npx agentic-orchestra update               # add what is missing, refresh what is stale
 npx agentic-orchestra verify               # verify the invariants
 npx agentic-orchestra uninstall omp
 ```
@@ -305,6 +316,61 @@ are deleted with `--force`.
 
 If you installed with `npx skills add`, that CLI has its own path: `skills
 remove`, or remove the symlink from the install directory.
+
+## Keeping an installation current
+
+An installation from an older version is silently incomplete. Two agents and a
+spawn grant have been added since 0.2.0, so an install from that release has no
+coordinator, no integrator, and no agent that can delegate — and nothing says so
+until a delegation is attempted.
+
+```bash
+npx agentic-orchestra drift      # what differs, per runtime
+npx agentic-orchestra update     # add missing, refresh stale
+npx agentic-orchestra doctor     # the same summary, inside the environment report
+```
+
+`drift` distinguishes five states, and the distinction is the point:
+
+| State | Meaning | `update` does |
+|---|---|---|
+| `current` | byte-identical to what this version installs | nothing |
+| `stale` | ours, from an older version | refresh |
+| `local` | ours, but you edited it | **nothing** — never without `--force` |
+| `extra` | installed under a name this version no longer ships | remove |
+| `absent` | in this version, not installed | add |
+
+`extra` applies only inside the agents directory, which is this package's
+deployment target. The skills directory is **shared** with other tools, so an
+unfamiliar skill there is reported as `not ours` and is never a removal
+candidate. An earlier version of the drift check reported every unfamiliar skill
+as removed upstream, which on a real machine pointed at hand-installed skills and
+offered to delete them.
+
+`update` reuses the installer's own non-clobbering path rather than writing
+files itself, so the two cannot disagree about what "do not touch your edits"
+means.
+
+## Evals
+
+Three layers, deliberately separated by cost and by what they can prove.
+
+| Layer | Command | Cost | Proves |
+|---|---|---|---|
+| static contracts | `node tests/evals/contract.mjs` | free | the skills' and agents' contracts are declared and self-consistent |
+| install behaviour | `node tests/evals/install-behavior.mjs` | free | install is idempotent, update never clobbers, drift never offers to delete a foreign skill |
+| live contracts | `node tests/evals/live.mjs --run` | one model call per case | an agent actually obeys the contract it declares |
+
+The first two run in `verify.sh` and in CI. The third does not: it needs
+credentials, spends tokens, and its results move with the model, so a red run
+there would say more about the provider than about this repository. It refuses to
+run without `--run`.
+
+The live cases are the ones that matter and the ones that cannot run in CI. One
+of them hands the tester a colleague's claim that "the test suite is green", with
+no repository and no ability to run commands, and fails the response if it
+reports the fix as working. That is the failure the whole harness exists to
+catch, and no static check can catch it.
 
 ## Nested delegation (agents that spawn agents)
 

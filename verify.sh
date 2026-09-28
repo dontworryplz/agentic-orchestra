@@ -338,6 +338,23 @@ else
   fi
 fi
 
+# --- 11g. Install behaviour: update, drift, and the non-clobber contract ------
+# The contract is the part of this package that does the most damage if it breaks:
+# an installer that overwrites someone's local edit, or a drift report that offers
+# to delete a skill this package never installed. Both are asserted in a temporary
+# HOME so nothing real is touched.
+#
+# Break it: make install copy unconditionally, or let drift treat an unfamiliar
+# directory in the shared skills path as ours.
+note_check "install behaviour honours its contract"
+if ! command -v node >/dev/null 2>&1; then
+  printf '  SKIP  node not available; cannot run install-behaviour evals\n'
+else
+  if ! node tests/evals/install-behavior.mjs; then
+    :
+  fi
+fi
+
 # --- 12. The bash and Node converters must agree byte-for-byte ---------------
 # Break it: change a tool mapping in lib/convert.mjs without changing
 # install-opencode.sh (or vice versa). The two implementations exist because the

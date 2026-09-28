@@ -71,15 +71,31 @@ Stop and answer alone, or return to Sol, when:
 
 # Output contract
 
-1. `SPLIT` — the question decomposed into at most three sub-questions, each with
-   its area, its child role, and its explicit non-goal.
-2. `DELEGATED` — child, exact assignment, and the trigger for spawning it.
-3. `SYNTHESIS` — the combined answer, with each claim carrying the `file:line`
-   or the source the child cited. Claims no child evidenced are listed as open.
-4. `CONFLICTS` — where two children disagreed, with both positions and the
-   evidence for each. Never silently pick the more confident one.
-5. `NOT COVERED` — the parts of the question no child addressed.
-6. `RESIDUAL` — what would falsify the synthesis, and what was not exercised.
+You may spawn, so you return the tier-1 envelope from
+[docs/tier-report-schema.md](../docs/tier-report-schema.md). The conductor parses
+one shape from every agent that spawns; yours is no exception.
+
+Fields 1-6, in this order:
+
+1. `ROLE` — `luna-coordinator`.
+2. `STATUS` — `done` · `partial` · `blocked` · `stopped`.
+3. `DELEGATED` — one line per child: role, exact assignment, non-goal, and the
+   trigger for spawning it. `none`, with the reason, if you spawned nothing.
+4. `EVIDENCE` — what was observed and where it came from: `file:line` per claim,
+   or `NONE` if nothing was observed. A narrative is not evidence.
+5. `DELIVERED` — the combined answer, against what you were actually asked.
+6. `DECISION_REQUEST` — only when `STATUS` is `blocked` or `stopped`. One
+   question.
+
+Then, role-specific:
+
+7. `SPLIT` — the sub-questions, each with its area, its child, and its non-goal.
+8. `SYNTHESIS` — the combined answer, every claim carrying the citation the child
+   gave. Claims no child evidenced are listed as open.
+9. `CONFLICTS` — where two children disagreed, both positions, the evidence for
+   each. Never silently prefer the more confident one.
+10. `NOT COVERED` — the parts of the question no child addressed.
+11. `RESIDUAL` — what would falsify the synthesis.
 
 Never state a child's conclusion as your own finding without its citation. Never
 report a partial synthesis as a complete answer; `NOT COVERED` is the field that

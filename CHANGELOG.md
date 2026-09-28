@@ -9,6 +9,61 @@ backward compatible".
 
 ### Added
 
+- `npx agentic-orchestra update` and `drift`. An installation from 0.2.0 is
+  silently incomplete: it has no coordinator, no integrator, and no agent that
+  can delegate, and nothing said so. `drift` reports five states per runtime —
+  current, stale, local, extra, absent — because the difference between "ours
+  from an older version" and "ours, but you edited it" is the whole point.
+  `update` adds what is absent and refreshes what is stale, and reuses the
+  installer's own non-clobbering path rather than writing files itself, so the
+  two cannot disagree about what "do not touch your edits" means.
+- `tests/evals/` in three layers. `contract.mjs` asserts the skills' and agents'
+  contracts are declared and self-consistent. `install-behavior.mjs` asserts
+  install is idempotent, update never clobbers, and drift never offers to delete
+  a skill this package never installed. Both run in `verify.sh` and CI, and both
+  are free and deterministic. `live.mjs` runs a real agent against a fixture and
+  asserts it obeyed the contract it declares; it needs credentials, spends
+  tokens, and refuses to run without `--run`.
+- `tools/golden.mjs` and `tests/golden/`: 39 reviewed expected conversions.
+  Check 12 proved the bash and Node converters agree, which is not the same as
+  being right — a mapping wrong in both passes it forever. The goldens caught a
+  broken `read` mapping that every other check accepted.
+- CI now runs four jobs: bash scripts on ubuntu and macOS (the macOS system bash
+  is 3.2 and was never exercised in CI), the Node CLI on ubuntu, macOS and
+  Windows (Windows can only get the Node path), the packed tarball installed into
+  a clean project, and the real `skills` CLI against the checkout.
+
+### Changed
+
+- Runtime coverage goes from three to five. Cursor takes `.mdc` rules — the body
+  with the frontmatter stripped, the convention Nutlope/hallmark documents — for
+  both agents and skills, and reports that the model pin, tool grant and spawn
+  whitelist do not survive. Codex takes skills only, and says so by name: there
+  is no verified task-agent format for it, and a converter that invents a schema
+  produces files the runtime silently ignores.
+
+### Fixed
+
+- Both frontmatter shapes for a list-valued key are now read. OMP's bundled
+  agents use the block list; this repository ships the inline comma string. A
+  parser that understood only one did not fail — it reported an agent with no
+  tools, which the converters rendered as "everything denied", so a writing
+  agent lost edit, write and bash with nothing logged. Two further defects sat in
+  the same code: unmapped tools were reported only for `lsp` and silently for
+  `find`, and `while read` over `$(...)` dropped the last item of every list.
+- `tools:` and `spawns:` parsing in verify.sh, the converters and the spawn-graph
+  check all read both shapes now, and a new check pins the shipped form so the
+  repository stays reviewable by eye.
+- Every count assertion compares against the repository instead of a literal.
+  Hardcoding them turned "add two agents" into seven unrelated-looking failures.
+- `update` reported an internal failure as a raw stack trace, leaving the user
+  unsure which files had been touched.
+- A single failed item could abort an install mid-run and still report success.
+- `show --runtime` validated against a hardcoded list of three, so
+  `--runtime cursor` failed on a runtime the installer had just created.
+
+### Added
+
 - **Nested delegation.** Two new tier-1 agents carry a `spawns` whitelist, so an
   agent can now delegate to agents that report upward:
   - `luna-coordinator` — read-only. Splits one question too wide for a single

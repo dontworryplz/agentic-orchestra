@@ -31,21 +31,36 @@ const fail = (msg) => {
   process.exit(1);
 };
 
-const USAGE = `agentic-orchestra ${VERSION} — multi-agent roles and skill procedures for OMP, OpenCode, and Claude Code
+const USAGE = `agentic-orchestra ${VERSION} — multi-agent roles and skill procedures for five runtimes
 
 USAGE
   agentic-orchestra [install] [runtimes...] [options]
-  agentic-orchestra uninstall <runtime> [options]
+  agentic-orchestra update [runtimes...] [--dry-run] [--force]
+  agentic-orchestra drift [runtimes...]
+  agentic-orchestra uninstall <runtime> [--dry-run] [--force]
   agentic-orchestra verify [--fast] [--quiet]
   agentic-orchestra list
-  agentic-orchestra show <agent> [--runtime <omp|opencode|claude>]
+  agentic-orchestra show <name> [--runtime <runtime>]
   agentic-orchestra doctor
 
 RUNTIMES
   omp         ~/.omp/agent/agents  +  ~/.omp/skills
   opencode    ~/.config/opencode/{agents,skills}
   claude      ~/.claude/{agents,skills}
+  cursor      ~/.cursor/rules      (.mdc rules; agents and skills alike)
+  codex       ~/.codex/skills      (skills only: no verified task-agent format)
   all         every runtime, skipping those with no config directory
+
+UPDATE AND DRIFT
+  drift reports five states per runtime, and the difference between them is the
+  point: current, stale (ours from an older version), local (ours, but you
+  edited it), extra (installed under a name this version no longer ships), and
+  absent (in this version, not installed). update adds what is absent, refreshes
+  what is stale, and never touches what is local without --force.
+
+  The skills directory is shared with other tools, so an unfamiliar skill there is
+  reported as "not ours" and is never a removal candidate. Only the agents
+  directory belongs to this package, so only there is 'extra' actionable.
 
 OPTIONS
   --project           install into ./.omp, ./.opencode or ./.claude instead
