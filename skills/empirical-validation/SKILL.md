@@ -68,6 +68,14 @@ Run this test against your own proof, not only against someone else's.
 
 ## Command hygiene
 
+Run proof through `tools/evidence.mjs`: `evidence run --tier N --claim "..." --
+<command>`. It captures the command, the exit status and the decisive output into
+a receipt, and `evidence verify` checks the receipt is complete. A claim reported
+without a receipt is a claim the reporter has to re-derive from memory, which is
+where exit codes and decisive lines get rounded away.
+
+Every reported observation carries:
+
 Every reported observation carries:
 
 1. the exact command, verbatim, including flags

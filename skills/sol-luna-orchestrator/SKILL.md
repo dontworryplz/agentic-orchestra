@@ -74,6 +74,13 @@ list exists to prevent.
 
 ## Delegation
 
+`tools/route.mjs "<one line describing the work>"` suggests the role from the
+routing table below, with the reason attached. It is a suggestion: the conductor
+still decides. What it removes is the most common delegation mistake — choosing
+by availability (the role exists) rather than by capability (the role fits the
+shape of this task). When it returns `undecided`, do not pick the nearest role;
+do what it says: partition by area, name the evidence, then choose.
+
 Sol scopes with its own first search/read, decides architecture and exact cross-slice interfaces, then fans out only genuinely independent substantial slices. No delegation for trivial edits, one slice, or a direct question. Use one `task` batch for parallel slices; respect the runtime limit (currently four live subagents). Assign one writer per file/subsystem, preserve dirty/user-owned work, and serialize shared mutation through an integration owner.
 
 Each task names objective, exact files/symbols, non-goals, constraints, shared interface, deliverable, and observable acceptance. Concurrent agents skip formatters, linters, builds, and project-wide tests; Sol runs focused and final validation after integration. Do not spawn every role mechanically.

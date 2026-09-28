@@ -7,6 +7,11 @@ description: "Review a change as an independent gate: establish the exact diff b
 
 ## Establish the base before reading anything
 
+`tools/diff-base.sh` does this for you. Run it before anything else; it prints
+the base and the commands to read. If it refuses — a mixed state, or nothing to
+review — that refusal *is* the first finding: the change is not reviewable as
+one unit. Do not review past the refusal.
+
 A review of the wrong bytes is worse than no review, because it produces
 confident findings about code that will never ship. Determine what you are
 reviewing first:

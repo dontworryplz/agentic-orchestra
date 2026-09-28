@@ -22,6 +22,12 @@ review is a separate activity; behavior is the only subject here.
 
 ## Procedure
 
+Run `tools/clauses.mjs <spec>` first. It splits the specification into atomic
+clauses with stable IDs, in the table shape below. Splitting is mechanical; the
+seam, the falsifier and the verdict still need you. A spec that will not split by
+hand either — fix the spec before checking the code, because an unchecked clause
+is a verdict you will have to invent.
+
 1. Enumerate clauses. Split compound sentences into atomic clauses. Assign each a stable
    identifier in specification order. A clause split into three atomics is three rows, not one.
 2. Classify each clause: observable, latent (intent without a checkable outcome), or external.

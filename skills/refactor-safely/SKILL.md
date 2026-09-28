@@ -18,6 +18,11 @@ One change unit, one purpose. A diff that fails to state equivalence is not ship
 
 ## 1. Blast radius before edit
 
+Run `tools/blast.sh <symbol>` before touching anything. It enumerates references
+with two independent methods and reports where they disagree, which is exactly
+the corroboration this step requires. A graft index or CLI, if present, is the
+primary surface; the script's text search is the corroboration.
+
 Before touching a line, enumerate every consumer of the shape you are about to change. Write the list into the change unit. An unrecorded list is not a list.
 
 Sweep all of these, not only the first hit:

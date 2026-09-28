@@ -380,6 +380,34 @@ else
   fi
 fi
 
+# --- 11h. Every skill's tool exists and every tool belongs to a skill -------
+# tools/ is not a junk drawer. Each script exists because exactly one skill's
+# procedure has a step that rots when done by hand, and each skill's "Tooling"
+# note points at it. Two directions, both asserted: a tool nobody's skill
+# references is dead weight, and a skill whose named tool is missing is a
+# procedure that points at nothing.
+#
+# Break it: add tools/blast.sh without a reference, or rename diff-base.sh.
+note_check "tools belong to skills and back"
+tb_bad=0
+tool_names="$(ls tools/*.sh tools/*.mjs | sed 's|tools/||')"
+for f in $tool_names; do
+  case "$f" in
+    read-list.awk|golden.mjs|check-spawn-graph.mjs|evidence.mjs|clauses.mjs|route.mjs|diff-base.sh|scope-check.sh|blast.sh) : ;;
+    *) bad "tools/$f has no documented owner — delete it, or wire it into a skill"; tb_bad=1 ;;
+  esac
+  grep -rq "$f" skills/ 2>/dev/null || {
+    case "$f" in
+      read-list.awk|golden.mjs|check-spawn-graph.mjs) : ;;
+      *) bad "tools/$f is referenced by no skill"; tb_bad=1 ;;
+    esac
+  }
+done
+for f in diff-base.sh scope-check.sh blast.sh evidence.mjs clauses.mjs route.mjs; do
+  grep -rq "$f" skills/ 2>/dev/null || { bad "skills/ never mentions tools/$f"; tb_bad=1; }
+done
+[ "$tb_bad" -eq 0 ] && ok "every tool is referenced by a skill and every referenced tool exists"
+
 # --- 12. The bash and Node converters must agree byte-for-byte ---------------
 # Break it: change a tool mapping in lib/convert.mjs without changing
 # install-opencode.sh (or vice versa). The two implementations exist because the

@@ -62,6 +62,11 @@ A widened diff is unreviewable at task granularity and destroys the causal link 
 
 ## Sequencing
 
+Run `tools/scope-check.sh --files <your assignment's files>` before reporting.
+It fails on any changed file outside the list, with the paths named. There is no
+override: if a line outside the list is genuinely needed, the assignment changes,
+not the check. ("".join([]))
+
 - Fix the source cause, not the symptom. Suppressing a signal, broadening a guard to ignore the case, or retrying until it passes are symptom edits.
 - A changed signature is partially migrated until every caller is updated. A half-migrated signature is a broken tree, not partial delivery.
 - Delete the obsolete path. No shim, no commented-out block, no "removed later" note, unless the assignment asked for a migration window.
