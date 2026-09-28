@@ -41,7 +41,7 @@ printf 'agentic-orchestra verify\n  repo: %s\n' "$REPO_DIR"
 # Break it: delete the opening --- from any agents/ or skills/ file.
 note_check "frontmatter present"
 fm_bad=0
-for f in agents/*.md skills/*/SKILL.md; do
+for f in core/agents/*.md core/skills/*/SKILL.md; do
   [ -e "$f" ] || continue
   if ! head -1 "$f" | grep -q '^---$'; then
     bad "no opening --- : $f"; fm_bad=1
@@ -49,26 +49,26 @@ for f in agents/*.md skills/*/SKILL.md; do
     bad "no closing --- : $f"; fm_bad=1
   fi
 done
-[ "$fm_bad" -eq 0 ] && ok "all $(ls agents/*.md skills/*/SKILL.md | wc -l | tr -d ' ') runtime files have frontmatter"
+[ "$fm_bad" -eq 0 ] && ok "all $(ls core/agents/*.md core/skills/*/SKILL.md | wc -l | tr -d ' ') runtime files have frontmatter"
 
 # --- 1b. No directory nested inside a runtime directory -----------------------
 # A stray `agents/agents/` once shipped in this repository: a duplicate of every
 # agent definition, tracked and pushed, because a nested directory is not a `.md`
 # file so no existing check looked at it. Every installer and every test walks
-# agents/*.md and silently ignores it, so the duplicate sat there looking
+# core/agents/*.md and silently ignores it, so the duplicate sat there looking
 # harmless while the repository showed twelve roles twice.
 #
 # Break it: mkdir agents/agents and copy a file in.
 note_check "no nested directories in the runtime folders"
 nest_bad=0
-for d in agents/*/ ; do
+for d in core/agents/*/ ; do
   [ -d "$d" ] || continue
   bad "agents/$(basename "$d")/ is a directory inside agents/ — this duplicates the agent set"
   nest_bad=1
 done
 # `references/` is standard skill layout (upstream skills ship their knowledge
 # bases there); anything else nested inside a skill is a duplicate-in-waiting.
-for d in skills/*/*/ ; do
+for d in core/skills/*/*/ ; do
   [ -d "$d" ] || continue
   [ "$(basename "$d")" = "references" ] && continue
   bad "$(dirname "$d")/$(basename "$d")/ nests a directory inside a skill"
@@ -91,7 +91,7 @@ fi
 # Break it: change one agent's model back to gpt-5.6-luna.
 note_check "model pins stay in their families"
 mpin_bad=0
-for f in agents/*.md; do
+for f in core/agents/*.md; do
   m="$(awk '/^model:/{sub(/^model: */,""); print; exit}' "$f")"
   n="$(basename "$f" .md)"
   case "$m" in
@@ -100,19 +100,19 @@ for f in agents/*.md; do
   esac
 done
 if [ "$mpin_bad" -eq 0 ]; then
-  ok "all $(ls agents/*.md | wc -l | tr -d ' ') agent model pins are gpt-6-family or a documented vendor pin"
+  ok "all $(ls core/agents/*.md | wc -l | tr -d ' ') agent model pins are gpt-6-family or a documented vendor pin"
 fi
 
 # --- 2. name matches its file/directory name ---------------------------------
 # Break it: rename a file without editing its frontmatter name.
 note_check "name matches location"
 nm_bad=0
-for f in agents/*.md; do
+for f in core/agents/*.md; do
   n="$(awk '/^name:/{sub(/^name: */,""); print; exit}' "$f")"
   b="$(basename "$f" .md)"
   [ "$n" = "$b" ] || { bad "agents/$b.md declares name '$n'"; nm_bad=1; }
 done
-for d in skills/*/; do
+for d in core/skills/*/; do
   n="$(awk '/^name:/{sub(/^name: */,""); print; exit}' "$d/SKILL.md")"
   b="$(basename "$d")"
   [ "$n" = "$b" ] || { bad "skills/$b/ declares name '$n'"; nm_bad=1; }
@@ -123,9 +123,9 @@ done
 # Break it: add a skill:// line naming a skill that is neither shipped nor
 # listed in docs/unresolved-skills.txt.
 note_check "skill:// references resolve or are declared gaps"
-ref_total="$(grep -ohE 'skill://[a-z0-9-]+' agents/*.md skills/*/SKILL.md | sed 's|skill://||' | sort -u | wc -l | tr -d ' ')"
+ref_total="$(grep -ohE 'skill://[a-z0-9-]+' core/agents/*.md core/skills/*/SKILL.md | sed 's|skill://||' | sort -u | wc -l | tr -d ' ')"
 actual_gaps="$(comm -23 \
-  <(grep -ohE 'skill://[a-z0-9-]+' agents/*.md skills/*/SKILL.md | sed 's|skill://||' | sort -u) \
+  <(grep -ohE 'skill://[a-z0-9-]+' core/agents/*.md core/skills/*/SKILL.md | sed 's|skill://||' | sort -u) \
   <(ls skills | sort) | sort)"
 declared_gaps="$(grep -vE '^\s*(#|$)' docs/unresolved-skills.txt 2>/dev/null | awk '{print $1}' | sort || true)"
 
@@ -148,7 +148,7 @@ fi
 # search words themselves.
 note_check "language is English everywhere"
 rt_bad=0
-lang_targets="$(ls agents/*.md skills/*/SKILL.md docs/*.md docs/*.txt README.md AGENTS.md CHANGELOG.md 2>/dev/null)"
+lang_targets="$(ls core/agents/*.md core/skills/*/SKILL.md docs/*.md docs/*.txt README.md AGENTS.md CHANGELOG.md 2>/dev/null)"
 for f in $lang_targets; do
   if grep -qE '(^|[^[:alpha:]])(ve|ile|icin|olarak|ancak|cunku|degil|sey)([^[:alpha:]]|$)' "$f" \
      || grep -qE '(^|[^[:alpha:]])(için|olarak|ancak|çünkü|degil|şey)([^[:alpha:]]|$)' "$f"; then
@@ -157,19 +157,11 @@ for f in $lang_targets; do
 done
 [ "$rt_bad" -eq 0 ] && ok "no Turkish prose in $(printf '%s\n' $lang_targets | wc -l | tr -d ' ') tracked text files"
 
-# One deliberate exception, asserted rather than assumed: the two Turkish words
-# quoted inside troubleshooting examples are diagnostic output, not prose.
-if grep -qE "graft-indexed değil" docs/troubleshooting.md 2>/dev/null; then
-  :
-else
-  bad "docs/troubleshooting.md lost its quoted Turkish example; the detector may be over-broad"
-fi
-
 # --- 5. Read-only roles cannot gain write access through conversion ----------
 # Break it: add `edit` to the tools line of any explorer/reviewer.
 note_check "read-only invariant survives conversion"
 ro_bad=0
-for f in agents/*explorer.md agents/*reviewer.md agents/luna-researcher.md; do
+for f in core/agents/*explorer.md core/agents/*reviewer.md core/agents/luna-researcher.md; do
   [ -e "$f" ] || continue
   t="$(awk '/^tools:/{sub(/^tools: */,""); print; exit}' "$f")"
   case ",$(printf '%s' "$t" | tr -d ' ')," in
@@ -183,7 +175,7 @@ done
 # excluded because it necessarily contains the search pattern itself.
 note_check "no placeholders"
 ph_bad=0
-for f in agents/*.md skills/*/SKILL.md install*.sh uninstall.sh; do
+for f in core/agents/*.md core/skills/*/SKILL.md install*.sh uninstall.sh; do
   [ -e "$f" ] || continue
   if grep -qE 'TODO|FIXME|XXX|<placeholder>' "$f"; then
     bad "placeholder marker in $f"; ph_bad=1
@@ -203,7 +195,7 @@ if [ ! -d skills ]; then
   bad "no top-level skills/ directory; \`npx skills add\` would find nothing"
   sa_bad=1
 else
-  for d in skills/*/; do
+  for d in core/skills/*/; do
     [ -d "$d" ] || continue
     [ -f "$d/SKILL.md" ] || { bad "skills/$(basename "$d")/ has no SKILL.md"; sa_bad=1; }
   done
@@ -218,7 +210,52 @@ else
     ' 2>/dev/null || { bad "package.json files[] does not include skills/"; sa_bad=1; }
   fi
 fi
-[ "$sa_bad" -eq 0 ] && ok "skills/ layout matches the \`npx skills add\` discovery convention ($(ls -d skills/*/ | wc -l | tr -d ' ') skills)"
+[ "$sa_bad" -eq 0 ] && ok "skills/ layout matches the \`npx skills add\` discovery convention ($(ls -d core/skills/*/ | wc -l | tr -d ' ') skills)"
+
+# --- 6a2. The skill mirrors are byte-identical ----------------------------------
+# core/skills/ is the source of truth; skills/ (npx discovery) and
+# .agents/skills/ (portable copy) are mirrors, not forks. A fix applied to one
+# copy and not the others ships two different procedures under one name.
+# Break it: edit a SKILL.md in skills/ without mirroring it into core/skills/.
+note_check "skill mirrors are byte-identical"
+mir_bad=0
+for d in core/skills/*/; do
+  s="$(basename "$d")"
+  for mirror in "skills/$s" ".agents/skills/$s"; do
+    if [ ! -d "$mirror" ]; then
+      bad "mirror missing: $mirror (core/skills/$s has no counterpart)"; mir_bad=1; continue
+    fi
+    if ! diff -r -q "$d" "$mirror" >/dev/null 2>&1; then
+      bad "mirror diverged: $mirror differs from core/skills/$s"; mir_bad=1
+    fi
+  done
+done
+[ "$mir_bad" -eq 0 ] && ok "skills/ and .agents/skills/ mirror core/skills/ exactly"
+
+# --- 6a3. Every registry provider has an adapter --------------------------------
+# Adding a provider is one registry entry + one adapter + tests. A registry id
+# with no adapter module is an installer option that crashes on selection.
+# Break it: append an id to registry/providers.json without adapters/<id>.mjs.
+note_check "registry entries resolve to adapters"
+reg_bad=0
+if ! command -v node >/dev/null 2>&1; then
+  printf '  SKIP  node not available; cannot read the registry\n'
+else
+  ids="$(node -e 'const r=require("./registry/providers.json"); console.log(r.providers.map(p=>p.id).join("\n"))' 2>/dev/null)"
+  if [ -z "$ids" ]; then
+    bad "registry/providers.json does not parse"; reg_bad=1
+  else
+    for pid in $ids; do
+      case "$pid" in
+        claude-code) mod="adapters/claude.mjs" ;;
+        continue) mod="adapters/continue.mjs" ;;
+        *) mod="adapters/$pid.mjs" ;;
+      esac
+      [ -f "$mod" ] || { bad "registry id '$pid' has no adapter module ($mod missing)"; reg_bad=1; }
+    done
+  fi
+fi
+[ "$reg_bad" -eq 0 ] && ok "every registry provider resolves to an adapter module"
 
 # --- 6b. The npx entry point is actually executable --------------------------
 # Break it: delete the shebang from bin/agentic-orchestra.mjs, or clear its exec
@@ -234,12 +271,16 @@ for entry in bin/*.mjs; do
 done
 if [ "$ent_bad" -eq 0 ] && [ -d bin ]; then
   node --check bin/agentic-orchestra.mjs >/dev/null 2>&1 || { bad "bin/agentic-orchestra.mjs is not valid JS"; ent_bad=1; }
-  node --check lib/convert.mjs >/dev/null 2>&1 || { bad "lib/convert.mjs is not valid JS"; ent_bad=1; }
-  node --check lib/verify.mjs >/dev/null 2>&1 || { bad "lib/verify.mjs is not valid JS"; ent_bad=1; }
-  node --check lib/frontmatter.mjs >/dev/null 2>&1 || { bad "lib/frontmatter.mjs is not valid JS"; ent_bad=1; }
-  node --check lib/paths.mjs >/dev/null 2>&1 || { bad "lib/paths.mjs is not valid JS"; ent_bad=1; }
+  for jf in lib/convert.mjs lib/verify.mjs lib/frontmatter.mjs lib/paths.mjs lib/validate.mjs lib/detect.mjs lib/drift.mjs core/schema.mjs core/capabilities.mjs; do
+    [ -e "$jf" ] || continue
+    node --check "$jf" >/dev/null 2>&1 || { bad "$jf is not valid JS"; ent_bad=1; }
+  done
+  for jf in adapters/*.mjs; do
+    [ -e "$jf" ] || continue
+    node --check "$jf" >/dev/null 2>&1 || { bad "$jf is not valid JS"; ent_bad=1; }
+  done
 fi
-[ "$ent_bad" -eq 0 ] && ok "bin/ has a shebang, exec bit, and valid JS in every lib file"
+[ "$ent_bad" -eq 0 ] && ok "bin/ has a shebang, exec bit, and valid JS in every lib/adapters file"
 
 # --- 7. Scripts are syntactically valid --------------------------------------
 # Break it: introduce an unbalanced quote in any script.
@@ -252,22 +293,22 @@ done
 [ "$sh_bad" -eq 0 ] && ok "all scripts pass bash -n"
 
 # --- 11b. The procedure graph is connected ----------------------------------
-# Nine skills that reference nothing are nine procedures an agent will run in
-# isolation and partly reinvent. Break it: delete a `## Hand off` section, or
-# strip every skill:// mention of one skill so it becomes an orphan.
+# Skills that reference nothing are procedures an agent will run in isolation
+# and partly reinvent. Break it: delete a `## Hand off` section, or strip
+# every skill:// mention of one skill so it becomes an orphan.
 #
 # Placed before the --fast gate on purpose: it needs no subprocess, and a check
 # that silently stops running in fast mode is a check you stop trusting.
 note_check "procedure graph is connected"
 pg_bad=0
-for d in skills/*/; do
+for d in core/skills/*/; do
   s="$(basename "$d")"
   grep -q '^## Hand off' "$d/SKILL.md" || { bad "skills/$s has no '## Hand off' section"; pg_bad=1; }
 done
 orphans=""
-for d in skills/*/; do
+for d in core/skills/*/; do
   s="$(basename "$d")"
-  refs="$(grep -l "skill://$s\b" skills/*/SKILL.md 2>/dev/null | grep -cv "/$s/SKILL.md$" || true)"
+  refs="$(grep -l "skill://$s\b" core/skills/*/SKILL.md 2>/dev/null | grep -cv "/$s/SKILL.md$" || true)"
   refs="${refs:-0}"
   [ "$refs" -ge 1 ] || orphans="$orphans $s"
 done
@@ -329,7 +370,7 @@ fi
 note_check "frontmatter form is consistent across agents"
 fm_bad=0
 fm_forms=""
-for f in agents/*.md; do
+for f in core/agents/*.md; do
   if awk 'NR>1 && /^tools:[[:space:]]*$/{print "list"; exit} NR>1 && /^tools:[[:space:]]*[^[:space:]]/{print "inline"; exit}' "$f" | grep -q .; then
     form="$(awk 'NR>1 && /^tools:[[:space:]]*$/{print "list"; exit} NR>1 && /^tools:[[:space:]]*[^[:space:]]/{print "inline"; exit}' "$f")"
     fm_forms="$fm_forms $form"
@@ -422,7 +463,7 @@ if ! command -v node >/dev/null 2>&1; then
   printf '  SKIP  node not available; cannot cross-check converters\n'
 else
   xcheck_bad=0
-  for f in agents/*.md; do
+  for f in core/agents/*.md; do
     n="$(basename "$f" .md)"
     for rt in opencode claude; do
       a="$(./install-$rt.sh --show "$n" 2>/dev/null)"
@@ -435,7 +476,7 @@ else
       fi
     done
   done
-  [ "$xcheck_bad" -eq 0 ] && ok "$(ls agents/*.md | wc -l | tr -d ' ') agents x 2 runtimes: bash and node output identical"
+  [ "$xcheck_bad" -eq 0 ] && ok "$(ls core/agents/*.md | wc -l | tr -d ' ') agents x 2 runtimes: bash and node output identical"
 fi
 
 # --- 8. Converted frontmatter has no duplicate keys --------------------------
@@ -443,7 +484,7 @@ fi
 # without deduping. YAML keeps the last value, so a granted tool goes missing.
 note_check "conversion emits no duplicate YAML keys"
 dup_bad=0
-for f in agents/*.md; do
+for f in core/agents/*.md; do
   n="$(basename "$f" .md)"
   for rt in opencode claude; do
     out="$(./install-$rt.sh --show "$n" 2>/dev/null)"
@@ -460,7 +501,7 @@ done
 # Break it: give an agent a tools value with no mapping branch; conversion dies.
 note_check "all agents convert to all runtimes"
 conv_bad=0
-for f in agents/*.md; do
+for f in core/agents/*.md; do
   n="$(basename "$f" .md)"
   for rt in opencode claude; do
     ./install-$rt.sh --show "$n" >/dev/null 2>&1 || { bad "$rt conversion failed for $n"; conv_bad=1; }
@@ -472,7 +513,7 @@ done
 # Break it: make an installer emit a model: field derived from the OMP pin.
 note_check "no invented model pins"
 mp_bad=0
-for f in agents/*.md; do
+for f in core/agents/*.md; do
   n="$(basename "$f" .md)"
   omp_model="$(awk '/^model:/{sub(/^model: */,""); print; exit}' "$f")"
   oc="$(./install-opencode.sh --show "$n" 2>/dev/null | grep '^model:' || true)"
@@ -501,8 +542,8 @@ done
 # --- 11. Smoke test: install, idempotency, uninstall -------------------------
 # Break it: make an installer non-idempotent, or let it clobber a modified file.
 note_check "installer smoke test (isolated HOME)"
-EXP_AGENTS="$(ls agents/*.md | wc -l | tr -d ' ')"
-EXP_SKILLS="$(ls -d skills/*/ | wc -l | tr -d ' ')"
+EXP_AGENTS="$(ls core/agents/*.md | wc -l | tr -d ' ')"
+EXP_SKILLS="$(ls -d core/skills/*/ | wc -l | tr -d ' ')"
 SMOKE="$(mktemp -d)"
 trap 'rm -rf "$SMOKE"' EXIT
 mkdir -p "$SMOKE/home" "$SMOKE/cfg"

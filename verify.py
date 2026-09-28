@@ -51,8 +51,8 @@ def bad(label: str) -> None:
 
 
 def runtime_files() -> list[Path]:
-    files = sorted((REPO / "agents").glob("*.md"))
-    for d in sorted((REPO / "skills").iterdir()):
+    files = sorted((REPO / "core" / "agents").glob("*.md"))
+    for d in sorted((REPO / "core" / "skills").iterdir()):
         if d.is_dir() and (d / "SKILL.md").exists():
             files.append(d / "SKILL.md")
     return files
@@ -114,11 +114,11 @@ def check_frontmatter() -> None:
 def check_no_nested_dirs() -> None:
     head("no nested directories in the runtime folders")
     bad_any = False
-    for d in (REPO / "agents").iterdir():
+    for d in (REPO / "core" / "agents").iterdir():
         if d.is_dir():
             bad(f"agents/{d.name}/ is a directory inside agents/ — this duplicates the agent set")
             bad_any = True
-    for skill in sorted((REPO / "skills").iterdir()):
+    for skill in sorted((REPO / "core" / "skills").iterdir()):
         if skill.is_dir():
             for d in skill.iterdir():
                 if d.is_dir() and d.name != "references":
@@ -131,13 +131,13 @@ def check_no_nested_dirs() -> None:
 def check_names() -> None:
     head("name matches location")
     bad_any = False
-    for f in (REPO / "agents").glob("*.md"):
+    for f in (REPO / "core" / "agents").glob("*.md"):
         m = re.search(r"^name:\s*(.+)$", f.read_text(), re.M)
         name = (m.group(1).strip() if m else "")
         if name != f.stem:
             bad(f"agents/{f.name} declares name '{name}'")
             bad_any = True
-    for d in sorted((REPO / "skills").iterdir()):
+    for d in sorted((REPO / "core" / "skills").iterdir()):
         if not d.is_dir():
             continue
         m = re.search(r"^name:\s*(.+)$", (d / "SKILL.md").read_text(), re.M)
@@ -171,7 +171,7 @@ def declared_gaps() -> set[str] | None:
 def check_skill_refs() -> None:
     head("skill:// references resolve or are declared gaps")
     refs = skill_refs()
-    shipped = {d.name for d in (REPO / "skills").iterdir() if d.is_dir()}
+    shipped = {d.name for d in (REPO / "core" / "skills").iterdir() if d.is_dir()}
     actual_gaps = sorted(r for r in refs if r not in shipped)
     declared = declared_gaps()
     if declared is None:
@@ -210,7 +210,7 @@ def check_language() -> None:
 def check_readonly() -> None:
     head("read-only invariant survives conversion")
     bad_any = False
-    for f in (REPO / "agents").glob("*.md"):
+    for f in (REPO / "core" / "agents").glob("*.md"):
         if not re.search(r"explorer|reviewer|researcher", f.stem):
             continue
         sys.path.insert(0, str(REPO / "tools"))
@@ -229,7 +229,7 @@ def check_placeholders() -> None:
     head("no placeholders")
     bad_any = False
     for f in runtime_files() + sorted(REPO.glob("*.py")) + sorted(REPO.glob("*.sh")):
-        if "verify.py" in str(f):
+        if "verify.py" in str(f) or f.name == "verify.sh":
             continue
         if re.search(r"TODO|FIXME|XXX|<placeholder>", f.read_text()):
             bad(f"placeholder marker in {f.relative_to(REPO)}")
@@ -241,10 +241,10 @@ def check_placeholders() -> None:
 def check_skills_discovery() -> None:
     head("npx skills add compatibility")
     bad_any = False
-    if not (REPO / "skills").is_dir():
+    if not (REPO / "core" / "skills").is_dir():
         bad("no top-level skills/ directory; `npx skills add` would find nothing")
         return
-    for d in sorted((REPO / "skills").iterdir()):
+    for d in sorted((REPO / "core" / "skills").iterdir()):
         if d.is_dir() and not (d / "SKILL.md").exists():
             bad(f"skills/{d.name}/ has no SKILL.md")
             bad_any = True
@@ -255,7 +255,7 @@ def check_skills_discovery() -> None:
         bad("package.json files[] does not include skills/")
         bad_any = True
     if not bad_any:
-        n = len([d for d in (REPO / "skills").iterdir() if d.is_dir()])
+        n = len([d for d in (REPO / "core" / "skills").iterdir() if d.is_dir()])
         ok(f"skills/ layout matches the `npx skills add` discovery convention ({n} skills)")
 
 
@@ -303,8 +303,8 @@ def check_python_syntax() -> None:
 def check_procedure_graph() -> None:
     head("procedure graph is connected")
     bad_any = False
-    skills = sorted(d.name for d in (REPO / "skills").iterdir() if d.is_dir())
-    texts = {s: (REPO / "skills" / s / "SKILL.md").read_text() for s in skills}
+    skills = sorted(d.name for d in (REPO / "core" / "skills").iterdir() if d.is_dir())
+    texts = {s: (REPO / "core" / "skills" / s / "SKILL.md").read_text() for s in skills}
     for s in skills:
         if not re.search(r"^## Hand off", texts[s], re.M):
             bad(f"skills/{s} has no '## Hand off' section")
@@ -333,7 +333,7 @@ def check_model_pins() -> None:
     head("model pins stay in their families")
     bad_any = False
     count = 0
-    for f in sorted((REPO / "agents").glob("*.md")):
+    for f in sorted((REPO / "core" / "agents").glob("*.md")):
         m = re.search(r"^model:\s*(.+)$", f.read_text(), re.M)
         model = (m.group(1).strip() if m else "")
         count += 1
@@ -350,7 +350,7 @@ def check_converters_agree() -> None:
     from convert import convert as py_convert
 
     bad_any = False
-    agents = sorted((REPO / "agents").glob("*.md"))
+    agents = sorted((REPO / "core" / "agents").glob("*.md"))
     for f in agents:
         for runtime in ("opencode", "claude", "cursor"):
             text, _ = py_convert(f.read_text(), runtime, {})
@@ -384,7 +384,7 @@ def check_no_invented_pins() -> None:
     from convert import convert as py_convert
 
     bad_any = False
-    for f in sorted((REPO / "agents").glob("*.md")):
+    for f in sorted((REPO / "core" / "agents").glob("*.md")):
         text, warns = py_convert(f.read_text(), "claude", {})
         if not re.search(r"^model: inherit$", text, re.M):
             bad(f"claude output should emit 'model: inherit' for {f.stem}")
@@ -420,8 +420,8 @@ def check_smoke() -> None:
     def run_install(args):
         return subprocess.run([sys.executable, "install.py", *args], capture_output=True, text=True, cwd=REPO, env={**env, "PATH": "/usr/bin:/bin:/usr/local/bin"})
 
-    agents = len(list((REPO / "agents").glob("*.md")))
-    skills = len([d for d in (REPO / "skills").iterdir() if d.is_dir()])
+    agents = len(list((REPO / "core" / "agents").glob("*.md")))
+    skills = len([d for d in (REPO / "core" / "skills").iterdir() if d.is_dir()])
     r = run_install(["--runtime", "omp"])
     n1 = len(list((smoke / ".omp" / "agent" / "agents").glob("*"))) if (smoke / ".omp" / "agent" / "agents").exists() else -1
     n2 = len(list((smoke / ".omp" / "skills").iterdir())) if (smoke / ".omp" / "skills").exists() else -1

@@ -1,6 +1,6 @@
 # Skills reference
 
-## What ships in this repo (9)
+## What ships in this repo (10)
 
 | Skill | What it does | Trigger |
 |---|---|---|
@@ -15,8 +15,11 @@
 | [`llm-sast-scanner`](../skills/llm-sast-scanner/SKILL.md) | SAST: source-to-sink taint analysis across 34 vulnerability classes, with per-class references. Vendored MIT with attribution; reviewers route security-sensitive scope to it. |
 | [`graft`](../skills/graft/SKILL.md) | Context from the `graft/` code graph, call traces, blast radius, file API. Preflight verifies the index exists. | Only in a graft-indexed repo, before grep/reading. |
 
-The agents make 15 `skill://` references; 9 are here, 6 are declared in
-[`unresolved-skills.txt`](unresolved-skills.txt).
+Every `skill://` reference either resolves to a skill shipped here (10) or is
+declared as a deliberate gap in [`unresolved-skills.txt`](unresolved-skills.txt)
+(third-party or MCP-bound skills such as `caveman`, `no-ai-slop`,
+`codebase-memory`, `context7-mcp`, `gitnexus-exploring`, `gsd-code-review`).
+`verify.sh` check 3 fails on divergence in either direction. Skills also link
 through from the orchestrator skill by plain name (no URI).
 
 ## Procedure graph
@@ -25,7 +28,7 @@ Skills are not independent documents, they are a call graph. Each one carries
 a `## Hand off` section: in which situation you move to which procedure.
 
 ```
-                      sol-luna-orchestrator   (grafın merkezi, 8'e bağlanır)
+                      sol-luna-orchestrator   (graph hub, links to 8)
                             │
         ┌───────────────────┼───────────────────┐
         ▼                   ▼                   ▼
@@ -41,7 +44,7 @@ a `## Hand off` section: in which situation you move to which procedure.
                          ▲
                     executor ──(DECISION_REQUEST)──► sol-luna-orchestrator
                          ▲
-                         └── graft (yalnızca graft-indexed repo'da)
+                          └── graft (graft-indexed repos only)
 ```
 
 The rule: **the output of one procedure is the input of another.** `executor`
@@ -57,7 +60,7 @@ flow is exactly its decision.
 
 ## How to install
 
-These 9 skills can be installed with `npx skills add dontworryplz/agentic-orchestra-`;
+These 10 skills can be installed with `npx skills add dontworryplz/agentic-orchestra-`;
 they follow the `skills/<name>/SKILL.md` convention and the CLI discovers them
 directly. Use `npx agentic-orchestra` when you also want the agent definitions
 to come along, or to install into OMP. Details: [README](../README.md#install).

@@ -22,16 +22,19 @@ openai-codex/gpt-6-sol     →     luna-*          (5 rol)    →    graft
 
 | Role | File | Model | Tools | When |
 |---|---|---|---|---|
-| Discovery | `agents/luna-explorer.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, lsp, web_search | find symbols, extract flow, map dependencies |
-| Research | `agents/luna-researcher.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, web_search | current API/behaviour, primary source verification |
-| Implementation | `agents/luna-worker.md` | `openai-codex/gpt-6-luna:max` | + edit, write | code slice with narrowed ownership |
-| Test | `agents/luna-tester.md` | `openai-codex/gpt-6-luna:max` | + edit, write | repro, targeted test, produce evidence |
-| Review | `agents/luna-reviewer.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, lsp, bash | independent correctness/security gate |
-| Long-context implementation | `agents/space-bunny-worker.md` | `stealth/space-bunny-alpha` | + edit, write | a slice that does not fit one pass (1M) |
-| Long-context review | `agents/space-bunny-reviewer.md` | `stealth/space-bunny-alpha` | read, grep, glob, lsp, bash | a review that does not fit one pass (1M) |
-| Antigravity discovery | `agents/antigravity-gemini-explorer.md` | `google-antigravity/gemini-3.8-flash:high` | read, grep, glob, lsp, bash | large read-only reading load (1M) |
-| Antigravity implementation | `agents/antigravity-sonnet-worker.md` | `google-antigravity/claude-sonnet-4-6:high` | + edit, write | parallel, file-disjoint slice (250K) |
-| Antigravity review | `agents/antigravity-opus-reviewer.md` | `google-antigravity/claude-opus-4-6:high` | read, grep, glob, lsp, bash | second opinion for a high-risk flow (250K) |
+| Discovery | `core/agents/luna-explorer.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, lsp, web_search | find symbols, extract flow, map dependencies |
+| Research | `core/agents/luna-researcher.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, web_search | current API/behaviour, primary source verification |
+| Implementation | `core/agents/luna-worker.md` | `openai-codex/gpt-6-luna:max` | + edit, write | code slice with narrowed ownership |
+| Test | `core/agents/luna-tester.md` | `openai-codex/gpt-6-luna:max` | + edit, write | repro, targeted test, produce evidence |
+| Review | `core/agents/luna-reviewer.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, lsp, bash | independent correctness/security gate |
+| Security review | `core/agents/security-reviewer.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, lsp, bash | SAST taint-trace via `skill://llm-sast-scanner`, Judge-verified findings only |
+| Tier-1 fan-out | `core/agents/luna-coordinator.md` | `openai-codex/gpt-6-luna:max` | read-only + spawns | split a wide question, synthesize answers |
+| Tier-1 seam owner | `core/agents/luna-integrator.md` | `openai-codex/gpt-6-luna:max` | + edit, write + spawns | own the shared interface and file partition |
+| Long-context implementation | `core/agents/space-bunny-worker.md` | `stealth/space-bunny-alpha` | + edit, write | a slice that does not fit one pass (1M) |
+| Long-context review | `core/agents/space-bunny-reviewer.md` | `stealth/space-bunny-alpha` | read, grep, glob, lsp, bash | a review that does not fit one pass (1M) |
+| Antigravity discovery | `core/agents/antigravity-gemini-explorer.md` | `google-antigravity/gemini-3.8-flash:high` | read, grep, glob, lsp, bash | large read-only reading load (1M) |
+| Antigravity implementation | `core/agents/antigravity-sonnet-worker.md` | `google-antigravity/claude-sonnet-4-6:high` | + edit, write | parallel, file-disjoint slice (250K) |
+| Antigravity review | `core/agents/antigravity-opus-reviewer.md` | `google-antigravity/claude-opus-4-6:high` | read, grep, glob, lsp, bash | second opinion for a high-risk flow (250K) |
 
 All model IDs were verified against `omp models` output (see README
 "Verification").
@@ -101,20 +104,20 @@ No specialist agent holds extended authority:
 
 ## Distribution layer
 
-Two independent paths read the same `agents/` and `skills/` source. The
+Three paths read the same `core/agents/` and `core/skills/` source. The
 reason for the decision is scope, not preference:
 
 ```
-                    agents/ (10)        skills/ (9)
-                         │                  │
+                 core/agents/ (13)   core/skills/ (10)
+                          │                  │
         ┌────────────────┴─────────┬────────┴───────────────┐
         │                          │                        │
-  npx skills add            agentic-orchestra         install*.sh
-  (vercel-labs/skills)      (Node CLI)                (bash)
+  npx skills add            agentic-orchestra         installer/wizard.py
+  (vercel-labs/skills)      (Node CLI)                (Python wizard)
         │                          │                        │
   skill only,               skill + agents,           skill + agents,
-  80+ agent                 omp/opencode/claude       omp/opencode/claude
-  varsayılan: symlink       kopyalar, üstüne yazmaz   kopyalar, üstüne yazmaz
+  default: symlink          12 providers,             12 providers,
+                            copies, never overwrites  copies, never overwrites
 ```
 
 `npx skills add` carries no agent definition and does not know OMP; in the
@@ -128,20 +131,23 @@ at once.
 
 ## Conversion layer
 
-`agents/*.md` is in OMP format. The other two runtimes have a different
-frontmatter schema, so conversion is applied in two places:
+`core/agents/*.md` is the canonical format (OMP-compatible frontmatter).
+Every other provider renders from it through its adapter
+(`adapters/<id>.mjs` + `installer/adapters.py` + `lib/convert.mjs` /
+`lib/convert.py`), so the mapping is declared once per target:
 
-| Source field | OMP | OpenCode | Claude Code |
-|---|---|---|---|
-| tools | `tools: a, b, c` | `a: true` map under `tools:` | `tools: A,B,C` Title-case list |
-| role | — | `mode: subagent` | — |
-| model | `provider/model:effort` | *(dropped)* | `inherit` |
-| extra field | `read-summarize` | `temperature`, `steps` | `effort` |
+| Source field | OMP | OpenCode | Claude Code | Others without a native agent format |
+|---|---|---|---|---|
+| tools | `tools: a, b, c` | `a: true` map under `tools:` | `tools: A,B,C` Title-case list | body only (grant not expressible) |
+| role | — | `mode: subagent` | — | labeled compatibility wrapper |
+| model | `provider/model:effort` | *(dropped)* | `inherit` | *(dropped)* |
+| extra field | `read-summarize` | `temperature`, `steps` | `effort` | — |
 
-The two implementations (bash and Node) repeat each other on purpose: one is
-dependency-free, the other is cross-platform. Without the duplication they
-would silently diverge; `verify.sh` check 12 compares the two byte-for-byte
-and on the first run found Node's `trailing-space` difference.
+The implementations (bash, Node, Python) repeat each other on purpose: bash
+is the dependency-free path, Node is the npx path, Python drives the
+universal wizard. Without the checks that duplication would drift silently;
+`verify.sh` check 12 compares bash vs Node byte-for-byte and `verify.py`
+compares Python vs Node the same way.
 
 Two rules bound the conversion:
 

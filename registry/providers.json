@@ -1,0 +1,127 @@
+{
+  "$schema": "agentic-orchestra provider registry, version 1",
+  "note": "Skill install paths follow the de-facto standard (vercel-labs/skills v1.7.0 agent table). Agent support is stated per adapter and verified by tests — never advertised beyond what the adapter actually renders. See adapters/<id>/adapter.json for the contract each one implements.",
+  "providers": [
+    {
+      "id": "omp",
+      "displayName": "OMP",
+      "binaries": ["omp"],
+      "configDirs": ["~/.omp/agent"],
+      "skills": { "project": ".omp/skills", "global": "~/.omp/skills" },
+      "agents": { "support": "native", "format": "omp-frontmatter", "project": ".omp/agents", "global": "~/.omp/agent/agents" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": true, "subagents": true, "commands": false, "rules": false, "instructions": false, "mcp": false, "hooks": true },
+      "notes": "Reference implementation of the canonical agent schema. spawns key is a capability grant."
+    },
+    {
+      "id": "opencode",
+      "displayName": "OpenCode",
+      "binaries": ["opencode"],
+      "configDirs": ["~/.config/opencode"],
+      "skills": { "project": ".agents/skills", "global": "~/.config/opencode/skills" },
+      "agents": { "support": "native", "format": "opencode-frontmatter", "project": ".opencode/agent", "global": "~/.config/opencode/agents" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": true, "subagents": true, "commands": true, "rules": false, "instructions": false, "mcp": true, "hooks": true }
+    },
+    {
+      "id": "claude-code",
+      "displayName": "Claude Code",
+      "binaries": ["claude"],
+      "configDirs": ["~/.claude"],
+      "skills": { "project": ".claude/skills", "global": "~/.claude/skills" },
+      "agents": { "support": "native", "format": "claude-frontmatter", "project": ".claude/agents", "global": "~/.claude/agents" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": true, "subagents": true, "commands": true, "rules": false, "instructions": false, "mcp": true, "hooks": true }
+    },
+    {
+      "id": "codex",
+      "displayName": "OpenAI Codex CLI",
+      "binaries": ["codex"],
+      "configDirs": ["~/.codex"],
+      "skills": { "project": ".agents/skills", "global": "~/.codex/skills" },
+      "agents": { "support": "skills-only", "format": null, "reason": "no verified task-agent format; skills install, agents are refused by name" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": false, "instructions": true, "mcp": true, "hooks": true }
+    },
+    {
+      "id": "cursor",
+      "displayName": "Cursor",
+      "binaries": ["cursor", "cursor-agent"],
+      "configDirs": ["~/.cursor"],
+      "skills": { "project": ".agents/skills", "global": "~/.cursor/skills" },
+      "agents": { "support": "rules-wrapper", "format": "mdc-rule", "project": ".cursor/rules", "global": "~/.cursor/rules", "reason": "Cursor reads .mdc rules, not agent definitions; agents and skills both render as rules" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": true, "instructions": false, "mcp": true, "hooks": false }
+    },
+    {
+      "id": "gemini",
+      "displayName": "Gemini CLI",
+      "binaries": ["gemini"],
+      "configDirs": ["~/.gemini"],
+      "skills": { "project": ".agents/skills", "global": "~/.gemini/skills" },
+      "agents": { "support": "rules-wrapper", "format": "gemini-md", "reason": "no verified native agent format; agents render as GEMINI.md instruction blocks, skills install natively" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": false, "instructions": true, "mcp": true, "hooks": false }
+    },
+    {
+      "id": "copilot",
+      "displayName": "GitHub Copilot CLI",
+      "binaries": ["copilot"],
+      "configDirs": ["~/.copilot"],
+      "skills": { "project": ".agents/skills", "global": "~/.copilot/skills" },
+      "agents": { "support": "rules-wrapper", "format": "instructions-md", "reason": "agents render as Copilot instruction files; skills install natively" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": false, "instructions": true, "mcp": true, "hooks": false }
+    },
+    {
+      "id": "qwen",
+      "displayName": "Qwen Code",
+      "binaries": ["qwen"],
+      "configDirs": ["~/.qwen"],
+      "skills": { "project": ".qwen/skills", "global": "~/.qwen/skills" },
+      "agents": { "support": "rules-wrapper", "format": "instructions-md", "reason": "agents render as instruction files; skills install natively" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": false, "instructions": true, "mcp": true, "hooks": false }
+    },
+    {
+      "id": "aider",
+      "displayName": "Aider",
+      "binaries": ["aider"],
+      "configDirs": ["~/.aider-desk"],
+      "skills": { "project": ".aider-desk/skills", "global": "~/.aider-desk/skills" },
+      "agents": { "support": "rules-wrapper", "format": "conventions-md", "reason": "Aider reads repo conventions, not agent definitions; agents render as convention files, skills install natively" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": true, "instructions": false, "mcp": false, "hooks": false }
+    },
+    {
+      "id": "amp",
+      "displayName": "Amp",
+      "binaries": ["amp"],
+      "configDirs": ["~/.config/agents"],
+      "skills": { "project": ".agents/skills", "global": "~/.config/agents/skills" },
+      "agents": { "support": "rules-wrapper", "format": "agents-md", "reason": "agents render into the shared AGENTS.md convention; skills install natively" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": false, "instructions": true, "mcp": false, "hooks": false }
+    },
+    {
+      "id": "continue",
+      "displayName": "Continue",
+      "binaries": ["cn"],
+      "configDirs": ["~/.continue"],
+      "skills": { "project": ".continue/skills", "global": "~/.continue/skills" },
+      "agents": { "support": "rules-wrapper", "format": "instructions-md", "reason": "agents render as instruction files; skills install natively" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": false, "instructions": true, "mcp": true, "hooks": false }
+    },
+    {
+      "id": "generic",
+      "displayName": "Generic Agent Skills",
+      "binaries": [],
+      "configDirs": [],
+      "skills": { "project": ".agents/skills", "global": "~/.config/agents/skills" },
+      "agents": { "support": "rules-wrapper", "format": "agents-md", "reason": "unknown CLI: AGENTS.md section plus .agents/skills/ copy, the portable subset every Agent Skills-compatible tool reads" },
+      "scopes": ["project", "global"],
+      "capabilities": { "skills": true, "agents": false, "subagents": false, "commands": false, "rules": false, "instructions": true, "mcp": false, "hooks": false }
+    }
+  ]
+}

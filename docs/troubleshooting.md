@@ -57,8 +57,8 @@ this machine the counterpart of this skill is `codebase-memory-mcp`.
 Check:
 
 ```bash
-ls -d graft 2>/dev/null || echo 'bu repo graft-indexed değil'
-command -v graft || echo 'graft CLI yok'
+ls -d graft 2>/dev/null || echo 'not a graft-indexed repo'
+command -v graft || echo 'no graft CLI'
 ```
 
 If both are missing you should not expect the agent to follow its `graft`
@@ -150,7 +150,7 @@ It should. The convention is `skills/<name>/SKILL.md` and this repo follows
 it. If it does not work, check these:
 
 ```bash
-ls skills/*/SKILL.md            # her skill dizininde SKILL.md olmalı
+ls skills/*/SKILL.md            # every skill directory must hold SKILL.md
 npx skills add dontworryplz/agentic-orchestra- --list
 ```
 
@@ -172,8 +172,8 @@ or `./install.sh`.
 **copies**. If both run at once it becomes unclear which one is read.
 
 ```bash
-ls -la ~/.omp/skills/graft        # bağ mı, kopya mı?
-npx skills add <repo> -g -y --copy   # kopyaya zorla
+ls -la ~/.omp/skills/graft        # symlink or copy?
+npx skills add <repo> -g -y --copy   # force copy
 ```
 
 Pick one way. If you prefer the symlink, do not also install the agents with

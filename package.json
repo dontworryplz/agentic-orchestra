@@ -1,7 +1,7 @@
 {
   "name": "agentic-orchestra",
-  "version": "0.3.0",
-  "description": "Multi-agent roles and skill procedures for OMP, OpenCode, and Claude Code. 10 task agents, 9 skills, non-clobbering installers for all three runtimes.",
+  "version": "0.4.0",
+  "description": "One AI-agent toolkit for every coding CLI: 13 canonical agents, 10 skills incl. llm-sast-scanner, 12 provider adapters, multi-select installer.",
   "license": "BSL-1.0",
   "type": "module",
   "bin": {
@@ -17,8 +17,12 @@
   "files": [
     "bin/",
     "lib/",
-    "agents/",
+    "core/",
     "skills/",
+    ".agents/",
+    "adapters/",
+    "registry/",
+    "installer/",
     "docs/",
     "install.sh",
     "install-opencode.sh",
@@ -38,7 +42,13 @@
       "opencode",
       "claude-code",
       "codex",
-      "cursor"
+      "cursor",
+      "gemini",
+      "copilot",
+      "qwen",
+      "aider",
+      "amp",
+      "continue"
     ]
   },
   "scripts": {

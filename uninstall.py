@@ -78,12 +78,12 @@ def main(argv: list[str] | None = None) -> int:
     for name in list_skills():
         if args.runtime == "cursor":
             rule = skills_dir / (name + ".mdc")
-            src = REPO / "skills" / name / "SKILL.md"
+            src = REPO / "core" / "skills" / name / "SKILL.md"
             expected, _ = convert(src.read_text(), "cursor", {})
             remove_file(rule, expected)
             continue
         dest = skills_dir / name
-        src = REPO / "skills" / name
+        src = REPO / "core" / "skills" / name
         if not dest.exists():
             print(f"  - {dest} (absent)")
             absent += 1

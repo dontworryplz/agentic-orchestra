@@ -54,8 +54,8 @@ check('a fresh install puts every agent and skill in place', () => {
   run(['install', 'omp']);
   const agents = execFileSync('ls', [AGENT_DIR()], { encoding: 'utf8' }).trim().split('\n');
   const skills = execFileSync('ls', [SKILL_DIR()], { encoding: 'utf8' }).trim().split('\n');
-  const wantAgents = execFileSync('ls', [path.join(ROOT, 'agents')], { encoding: 'utf8' }).trim().split('\n').length;
-  const wantSkills = execFileSync('ls', [path.join(ROOT, 'skills')], { encoding: 'utf8' }).trim().split('\n').filter(Boolean).length;
+  const wantAgents = execFileSync('ls', [path.join(ROOT, 'core', 'agents')], { encoding: 'utf8' }).trim().split('\n').length;
+  const wantSkills = execFileSync('ls', [path.join(ROOT, 'core', 'skills')], { encoding: 'utf8' }).trim().split('\n').filter(Boolean).length;
   assert(agents.length === wantAgents, `installed ${agents.length} agents, repository has ${wantAgents}`);
   assert(skills.length === wantSkills, `installed ${skills.length} skills, repository has ${wantSkills}`);
   return `${agents.length} agents, ${skills.length} skills`;
@@ -148,14 +148,24 @@ check('an agent removed upstream is reported as ours to remove', () => {
 });
 
 check('every runtime installs and every one is idempotent', () => {
-  const runtimes = ['omp', 'opencode', 'claude', 'cursor', 'codex'];
+  const runtimes = ['omp', 'opencode', 'claude-code', 'cursor', 'codex', 'gemini', 'copilot', 'qwen', 'aider', 'amp', 'continue', 'generic'];
   for (const runtime of runtimes) {
     run(['install', runtime]);
     const second = run(['install', runtime]).stdout;
-    assert(/identical, skipped/.test(second) || /not supported/.test(second),
+    assert(/identical, skipped/.test(second) || /not supported/.test(second) || /current, rest preserved/.test(second),
       `${runtime} is not idempotent:\n${second}`);
   }
   return `${runtimes.length} runtimes`;
+});
+
+check('three providers install in one operation', () => {
+  const out = run(['install', 'omp', 'claude-code', 'codex']).stdout;
+  assert(/Tool/.test(out) && /Scope/.test(out), `no summary matrix:\n${out}`);
+  assert(existsSync(path.join(home, '.omp', 'agent', 'agents', 'luna-worker.md')), 'omp agent missing');
+  assert(existsSync(path.join(home, '.claude', 'agents', 'luna-worker.md')), 'claude agent missing');
+  assert(existsSync(path.join(home, '.codex', 'skills', 'graft')), 'codex skill missing');
+  assert(!existsSync(path.join(home, '.codex', 'agents')), 'codex took agents it cannot hold');
+  return 'matrix + 3 providers';
 });
 
 check('an agentless runtime says so rather than pretending', () => {

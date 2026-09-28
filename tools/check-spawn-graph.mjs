@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Assert that the nested-spawn graph in agents/ is safe.
+// Assert that the nested-spawn graph in core/agents/ is safe.
 //
 // OMP treats `spawns` as a capability grant: an agent without the key cannot
 // spawn at all ("none (spawns disabled for this agent)"). A malformed graph is
@@ -31,7 +31,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_DEPTH = 1;
 
 function readAgents() {
-  const dir = path.join(ROOT, 'agents');
+  const dir = path.join(ROOT, 'core', 'agents');
   const agents = new Map();
   for (const f of readdirSync(dir).filter((x) => x.endsWith('.md'))) {
     const text = readFileSync(path.join(dir, f), 'utf8');

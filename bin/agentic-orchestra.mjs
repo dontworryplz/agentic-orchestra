@@ -23,7 +23,7 @@ import { dirMatches as treesEqual } from '../lib/drift.mjs';
 import { driftFor, isClean, summarize } from '../lib/drift.mjs';
 import { runChecks } from '../lib/verify.mjs';
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 
 const log = (msg = '') => process.stdout.write(`${msg}\n`);
 const warn = (msg) => process.stderr.write(`  ! ${msg}\n`);
@@ -32,25 +32,32 @@ const fail = (msg) => {
   process.exit(1);
 };
 
-const USAGE = `agentic-orchestra ${VERSION} — multi-agent roles and skill procedures for five runtimes
+const USAGE = `agentic-orchestra ${VERSION} — one agent toolkit, every AI coding tool
 
 USAGE
-  agentic-orchestra [install] [runtimes...] [options]
-  agentic-orchestra update [runtimes...] [--dry-run] [--force]
-  agentic-orchestra drift [runtimes...]
-  agentic-orchestra uninstall <runtime> [--dry-run] [--force]
+  agentic-orchestra [install] [providers...] [options]
+  agentic-orchestra update [providers...] [--dry-run] [--force]
+  agentic-orchestra drift [providers...]
+  agentic-orchestra uninstall <provider> [--dry-run] [--force]
   agentic-orchestra verify [--fast] [--quiet]
   agentic-orchestra list
-  agentic-orchestra show <name> [--runtime <runtime>]
+  agentic-orchestra show <name> [--runtime <provider>]
   agentic-orchestra doctor
 
-RUNTIMES
-  omp         ~/.omp/agent/agents  +  ~/.omp/skills
-  opencode    ~/.config/opencode/{agents,skills}
-  claude      ~/.claude/{agents,skills}
-  cursor      ~/.cursor/rules      (.mdc rules; agents and skills alike)
-  codex       ~/.codex/skills      (skills only: no verified task-agent format)
-  all         every runtime, skipping those with no config directory
+PROVIDERS (pick any number; detection only marks, never installs)
+  omp         OMP                  native agents + skills
+  opencode    OpenCode             native agents + skills
+  claude-code Claude Code          native agents + skills
+  codex       Codex CLI            skills only (no verified agent format)
+  cursor      Cursor               .mdc rules wrapper (compatibility)
+  gemini      Gemini CLI           skills + instruction wrapper (compatibility)
+  copilot     Copilot CLI          skills + instruction wrapper (compatibility)
+  qwen        Qwen Code            skills + instruction wrapper (compatibility)
+  aider       Aider                skills + conventions wrapper (compatibility)
+  amp         Amp                  skills + AGENTS.md wrapper (compatibility)
+  continue    Continue             skills + instruction wrapper (compatibility)
+  generic     Generic Agent Skills .agents/skills + AGENTS.md (fallback)
+  all         every provider with a config directory already present
 
 UPDATE AND DRIFT
   drift reports five states per runtime, and the difference between them is the
@@ -64,26 +71,32 @@ UPDATE AND DRIFT
   directory belongs to this package, so only there is 'extra' actionable.
 
 OPTIONS
-  --project           install into ./.omp, ./.opencode or ./.claude instead
+  --target <id>       provider to configure; repeatable (alias: --runtime)
+  --scope <s>         project | global | both (only scopes every selection supports)
+  --project           shortcut for --scope project
+  --components <list> comma list: agents,skills,sast,rules (default: capabilities)
   --dry-run           print the plan, write nothing
   --force             overwrite files that already exist
-  --agents-only       skip skills
-  --skills-only       skip agents
+  --agents-only       install agents only
+  --skills-only       install skills only
+  --sast-only         install the SAST skill only
   --temperature <n>   OpenCode only: emit a temperature field
   --steps <n>         OpenCode only: emit a steps field
   --model <m>         Claude only: inherit | sonnet | opus | haiku (default inherit)
-  --yes               do not prompt
+  --yes, -y           do not prompt (non-interactive)
+  --wizard            force the interactive multi-select wizard
   -h, --help          this text
   -v, --version       print the version
 
 Model pins are never invented. OMP pins provider-qualified model IDs that the
-other runtimes cannot express, so the pin is dropped and reported on stderr.
+other providers cannot express, so the pin is dropped and reported on stderr.
 
 EXAMPLES
-  npx agentic-orchestra                          # install everywhere available
-  npx agentic-orchestra install omp --dry-run    # see what would happen
-  npx agentic-orchestra install opencode --project
-  npx agentic-orchestra show luna-reviewer --runtime claude
+  npx agentic-orchestra --wizard                 # detected tools, pick any number
+  npx agentic-orchestra install --target claude-code --target codex --scope global
+  npx agentic-orchestra install opencode --scope project --dry-run
+  npx agentic-orchestra show luna-reviewer --runtime claude-code
+  npx agentic-orchestra show security-reviewer --runtime generic
 `;
 
 function parseArgs(argv) {
@@ -91,10 +104,16 @@ function parseArgs(argv) {
     command: 'install',
     runtimes: [],
     project: false,
+    scope: '',
+    components: '',
     dryRun: false,
     force: false,
     agentsOnly: false,
     skillsOnly: false,
+    sastOnly: false,
+    installRules: false,
+    rulesOnly: false,
+    wizard: false,
     temperature: '',
     steps: '',
     model: 'inherit',
@@ -107,19 +126,22 @@ function parseArgs(argv) {
 
   const known = new Set([
     '--project', '--dry-run', '--force', '-f', '--agents-only', '--skills-only',
-    '--yes', '-y', '--quiet', '-q', '--fast', '-h', '--help', '-v', '--version',
+    '--sast-only', '--wizard', '--yes', '-y', '--quiet', '-q', '--fast',
+    '-h', '--help', '-v', '--version',
   ]);
-  const valued = new Set(['--temperature', '--steps', '--model', '--runtime']);
+  const valued = new Set(['--temperature', '--steps', '--model', '--runtime', '--target', '--scope', '--components']);
 
   while (rest.length) {
     const arg = rest.shift();
     if (valued.has(arg)) {
       const value = rest.shift();
       if (value === undefined) fail(`${arg} requires a value`);
-      if (arg === '--runtime') opts.runtimes.push(value);
+      if (arg === '--runtime' || arg === '--target') opts.runtimes.push(value);
       else if (arg === '--temperature') opts.temperature = value;
       else if (arg === '--steps') opts.steps = value;
       else if (arg === '--model') opts.model = value;
+      else if (arg === '--scope') opts.scope = value;
+      else if (arg === '--components') opts.components = value;
       continue;
     }
     if (known.has(arg)) {
@@ -128,6 +150,8 @@ function parseArgs(argv) {
       else if (arg === '--force' || arg === '-f') opts.force = true;
       else if (arg === '--agents-only') opts.agentsOnly = true;
       else if (arg === '--skills-only') opts.skillsOnly = true;
+      else if (arg === '--sast-only') opts.sastOnly = true;
+      else if (arg === '--wizard') opts.wizard = true;
       else if (arg === '--yes' || arg === '-y') opts.yes = true;
       else if (arg === '--quiet' || arg === '-q') opts.quiet = true;
       else if (arg === '--fast') opts.fast = true;
@@ -146,7 +170,7 @@ function parseArgs(argv) {
 }
 
 function listAgents(root) {
-  const dir = path.join(root, 'agents');
+  const dir = path.join(root, 'core', 'agents');
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((f) => f.endsWith('.md'))
@@ -158,7 +182,7 @@ function listAgents(root) {
 }
 
 function listSkills(root) {
-  const dir = path.join(root, 'skills');
+  const dir = path.join(root, 'core', 'skills');
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true })
     .filter((d) => d.isDirectory() && existsSync(path.join(dir, d.name, 'SKILL.md')))
@@ -166,13 +190,16 @@ function listSkills(root) {
     .sort();
 }
 
+const RUNTIME_ALIASES = { claude: 'claude-code' };
+
 function resolveRuntimes(requested, opts) {
-  if (requested.includes('all')) return [...RUNTIMES];
-  if (requested.length) {
-    for (const r of requested) {
-      if (!RUNTIMES.includes(r)) fail(`unknown runtime '${r}' (expected ${RUNTIMES.join(', ')}, or all)`);
+  const canonical = requested.map((r) => RUNTIME_ALIASES[r] || r);
+  if (canonical.includes('all')) return [...RUNTIMES];
+  if (canonical.length) {
+    for (const r of canonical) {
+      if (!RUNTIMES.includes(r)) fail(`unknown provider '${r}' (expected ${RUNTIMES.join(', ')}, or all)`);
     }
-    return requested;
+    return canonical;
   }
   // Default: every runtime whose config directory already exists. Installing
   // into a runtime the user has never run would create directories they do not
@@ -199,9 +226,9 @@ function installOne(runtime, root, opts, convertOptions) {
     // A runtime that cannot hold task agents. Reported, not silently skipped:
     // "12 agents installed" into a runtime that holds none is a lie.
     log(`  - agents: not supported (${AGENTLESS_RUNTIMES[runtime] || `${runtime} takes no agents`})`);
-  } else if (!opts.skillsOnly) {
+  } else if (!opts.skillsOnly && !opts.sastOnly) {
     for (const agent of listAgents(root)) {
-      const source = readFileSync(path.join(root, 'agents', agent.file), 'utf8');
+      const source = readFileSync(path.join(root, 'core', 'agents', agent.file), 'utf8');
       let converted;
       try {
         converted = convert(source, runtime, convertOptions);
@@ -223,11 +250,12 @@ function installOne(runtime, root, opts, convertOptions) {
   }
 
   if (!opts.agentsOnly) {
-    for (const skill of listSkills(root)) {
+    const wanted = opts.sastOnly ? listSkills(root).filter((s) => s === 'llm-sast-scanner') : listSkills(root);
+    for (const skill of wanted) {
       if (runtime === 'cursor') {
         // A skill is a procedure, which is what a Cursor rule is. Same shape as
         // an agent rule: the body with the frontmatter stripped.
-        const source = readFileSync(path.join(root, 'skills', skill, 'SKILL.md'), 'utf8');
+        const source = readFileSync(path.join(root, 'core', 'skills', skill, 'SKILL.md'), 'utf8');
         let rule;
         try {
           rule = convert(source, 'cursor', {}).text;
@@ -245,15 +273,81 @@ function installOne(runtime, root, opts, convertOptions) {
         continue;
       }
       const dest = path.join(skillsDir, skill);
-      const status = copySkill(path.join(root, 'skills', skill), dest, opts);
+      const status = copySkill(path.join(root, 'core', 'skills', skill), dest, opts);
       if (status === 'written') written += 1;
       else if (status === 'skipped') skipped += 1;
       else blocked += 1;
     }
   }
 
+  if (opts.installRules || opts.rulesOnly) {
+    const r = mergeRulesFile(runtime, root, opts);
+    written += r.written;
+    skipped += r.skipped;
+    blocked += r.blocked;
+  }
+
   log(`  ${written} written, ${skipped} unchanged, ${blocked} left alone${warningCount ? `, ${warningCount} warning(s)` : ''}`);
   return { written, skipped, blocked, warningCount };
+}
+
+const RULES_BEGIN = '<!-- agentic-orchestra:begin -->';
+const RULES_END = '<!-- agentic-orchestra:end -->';
+
+// Append our instruction block to the provider's rules file between markers,
+// replacing only our own block. Everything outside the markers is preserved
+// byte-for-byte, with a backup before any change. Mirrors
+// installer/adapters.py::merge_rules_file.
+function mergeRulesFile(runtime, root, opts) {
+  const counts = { written: 0, skipped: 0, blocked: 0 };
+  const filename = runtime === 'gemini' ? 'GEMINI.md' : runtime === 'copilot' ? 'muse-instructions.md' : 'AGENTS.md';
+  const scopes = opts.project ? ['project'] : ['global'];
+  // 'both' is expanded by the caller into two installOne passes.
+  for (const scope of scopes) {
+    const dest = scope === 'project' ? path.join(process.cwd(), filename) : path.join(repoHome(), filename);
+    const lines = [`# agentic-orchestra roles (${runtime} compatibility layer)`, ''];
+    for (const agent of listAgents(root)) {
+      lines.push(`## ${agent.name}`);
+      lines.push(agent.description || '');
+      lines.push('');
+    }
+    const marked = `${RULES_BEGIN}\n${lines.join('\n')}\n${RULES_END}\n`;
+    const existing = existsSync(dest) ? readFileSync(dest, 'utf8') : '';
+    let next;
+    let action;
+    if (existing.includes(RULES_BEGIN)) {
+      const before = existing.slice(0, existing.indexOf(RULES_BEGIN));
+      const after = existing.slice(existing.indexOf(RULES_BEGIN));
+      const tail = after.slice(after.indexOf(RULES_END) + RULES_END.length).replace(/^\n+/, '');
+      next = before + marked + tail;
+      if (next === existing) {
+        log(`  = ${dest} (our block current, rest preserved)`);
+        counts.skipped += 1;
+        continue;
+      }
+      action = 'refresh our block';
+    } else {
+      next = existing ? `${existing.replace(/\n+$/, '\n')}\n${marked}` : marked;
+      action = 'append our block';
+    }
+    if (opts.dryRun) {
+      log(`  + ${dest} (${action}, dry-run; unrelated content preserved)`);
+      counts.written += 1;
+      continue;
+    }
+    if (existsSync(dest)) {
+      writeFileSync(`${dest}.agentic-orchestra.bak`, existing);
+    }
+    mkdirSync(path.dirname(dest), { recursive: true });
+    writeFileSync(dest, next);
+    log(`  + ${dest} (${action}; backup kept, unrelated content preserved)`);
+    counts.written += 1;
+  }
+  return counts;
+}
+
+function repoHome() {
+  return process.env.HOME || process.cwd();
 }
 
 // Cursor reads .mdc rule files; every other target reads .md.
@@ -283,10 +377,8 @@ function writeFile(dest, content, opts) {
 function copySkill(srcDir, destDir, opts) {
   if (existsSync(destDir) && !opts.force) {
     if (treesEqual(srcDir, destDir)) {
-      if (same) {
-        log(`  = ${destDir} (identical, skipped)`);
-        return 'skipped';
-      }
+      log(`  = ${destDir} (identical, skipped)`);
+      return 'skipped';
     }
     log(`  ! ${destDir} exists and differs — re-run with --force to overwrite`);
     return 'blocked';
@@ -317,10 +409,10 @@ function uninstallOne(runtime, root, opts) {
       absent += 1;
       continue;
     }
-    const source = readFileSync(path.join(root, 'agents', agent.file), 'utf8');
+    const source = readFileSync(path.join(root, 'core', 'agents', agent.file), 'utf8');
     let expected;
     try {
-      expected = convert(source, runtime, { temperature: opts.temperature, steps: opts.steps, model: opts.model }).text;
+      expected = convert(source, RUNTIME_ALIASES[runtime] || runtime, { temperature: opts.temperature, steps: opts.steps, model: opts.model }).text;
     } catch {
       expected = source;
     }
@@ -364,7 +456,7 @@ function uninstallOne(runtime, root, opts) {
       continue;
     }
     if (!opts.force) {
-      const src = path.join(root, 'skills', skill);
+      const src = path.join(root, 'core', 'skills', skill);
       const same = treesEqual(src, dest);
       if (!same) {
         log(`  ! ${dest} modified since install — left in place (use --force to remove)`);
@@ -385,7 +477,7 @@ function uninstallOne(runtime, root, opts) {
   return { removed, kept, absent };
 }
 
-function main(argv) {
+async function main(argv) {
   const opts = parseArgs(argv);
   const root = repoRoot();
 
@@ -480,7 +572,9 @@ function main(argv) {
       log(`${runtime}`);
       log(`  agents ${state.agents ? 'present' : 'absent '}  ${state.agentsDir}`);
       log(`  skills ${state.skills ? 'present' : 'absent '}  ${state.skillsDir}`);
-      const installed = state.agents ? readdirSync(state.agentsDir).filter((f) => f.endsWith('.md')).length : 0;
+      const installed = state.agents && state.agentsDir && existsSync(state.agentsDir)
+        ? readdirSync(state.agentsDir).filter((f) => f.endsWith('.md') || f.endsWith('.mdc')).length
+        : 0;
       log(`  agent files present: ${installed}`);
       if (state.agents || state.skills) {
         const report = driftFor(runtime, root, { project: opts.project });
@@ -496,15 +590,17 @@ function main(argv) {
   if (opts.command === 'show') {
     const name = opts.runtimes[0];
     if (!name) fail('show needs a name, e.g. `show luna-worker` or `show debug-issue`');
-    // `--runtime` wins; otherwise `--model` implies Claude Code, since that is
-    // the only target it affects.
-    const explicit = argv.includes('--runtime')
-      ? argv[argv.indexOf('--runtime') + 1]
+    // `--runtime`/`--target` wins; otherwise `--model` implies Claude Code,
+    // since that is the only target it affects.
+    const flagIdx = argv.findIndex((a) => a === '--runtime' || a === '--target');
+    const explicitRaw = flagIdx !== -1
+      ? argv[flagIdx + 1]
       : opts.model !== 'inherit'
-        ? 'claude'
+        ? 'claude-code'
         : 'opencode';
-    if (!RUNTIMES.includes(explicit)) fail(`unknown runtime '${explicit}' (expected ${RUNTIMES.join(', ')})`);
-    const file = path.join(root, 'agents', `${name}.md`);
+    const explicit = RUNTIME_ALIASES[explicitRaw] || explicitRaw;
+    if (!RUNTIMES.includes(explicit)) fail(`unknown provider '${explicit}' (expected ${RUNTIMES.join(', ')})`);
+    const file = path.join(root, 'core', 'agents', `${name}.md`);
     if (!existsSync(file)) fail(`no agent named '${name}' (try \`list\`)`);
     const result = convert(readFileSync(file, 'utf8'), explicit, {
       temperature: opts.temperature,
@@ -537,31 +633,85 @@ function main(argv) {
   }
 
   // install
-  const runtimes = resolveRuntimes(opts.runtimes, opts);
+  if (opts.scope && !['project', 'global', 'both'].includes(opts.scope)) {
+    fail(`unknown scope '${opts.scope}' (expected project, global, or both)`);
+  }
+  if (opts.project && opts.scope && opts.scope !== 'project') {
+    fail('--project conflicts with --scope ' + opts.scope);
+  }
+  const effectiveScope = opts.scope || (opts.project ? 'project' : 'global');
+  if (opts.components) {
+    const knownComponents = new Set(['agents', 'skills', 'sast', 'rules']);
+    for (const c of opts.components.split(',').map((s) => s.trim()).filter(Boolean)) {
+      if (!knownComponents.has(c)) fail(`unknown component '${c}' (expected agents,skills,sast,rules)`);
+    }
+    const set = new Set(opts.components.split(',').map((s) => s.trim()).filter(Boolean));
+    if (set.has('agents')) opts.agentsOnly = false;
+    if (!set.has('agents')) opts.skillsOnly = true;
+    if (!set.has('skills') && !set.has('sast')) opts.agentsOnly = true;
+    if (set.has('sast') && !set.has('skills')) opts.sastOnly = true;
+    if (set.has('rules')) opts.installRules = true;
+  }
+
+  let runtimes = resolveRuntimes(opts.runtimes, opts);
+  let wizardScope = '';
+  // Interactive multi-select wizard: detection marks, the user selects any
+  // number, then scope, then components. Triggered by --wizard, or by a bare
+  // install on a TTY without explicit targets and without --yes.
+  const wantWizard = opts.wizard || (!opts.runtimes.length && !opts.yes && process.stdin.isTTY && process.stdout.isTTY);
+  if (wantWizard && opts.command === 'install') {
+    const answers = await runWizard(root, runtimes);
+    if (!answers.runtimes.length) {
+      log('Nothing selected. Nothing installed.');
+      return 1;
+    }
+    runtimes = answers.runtimes;
+    if (answers.scope) wizardScope = answers.scope;
+    if (answers.components) {
+      const set = new Set(answers.components);
+      opts.agentsOnly = !set.has('skills') && !set.has('sast');
+      opts.skillsOnly = !set.has('agents');
+      opts.sastOnly = set.has('sast') && !set.has('skills');
+      opts.rulesOnly = set.has('rules');
+    }
+  }
+  const finalScope = wizardScope || effectiveScope;
   log(`agentic-orchestra ${VERSION} installer`);
   log(`  repo:   ${root}`);
-  log(`  scope:  ${opts.project ? 'project' : 'user'}`);
+  log(`  scope:  ${finalScope}`);
   log(`  target: ${runtimes.join(', ')}`);
   if (opts.dryRun) log('  mode:   dry-run (no writes)');
   if (opts.force) log('  mode:   force (overwrite existing)');
 
   if (!runtimes.length) {
     log('');
-    log('No runtime config directory found. Pass one explicitly: omp, opencode, claude, or all.');
+    log('No provider config directory found. Pass targets explicitly, e.g. --target claude-code --target codex.');
     return 1;
   }
 
+  const scopesFor = () => (finalScope === 'both' ? ['project', 'global'] : [finalScope]);
+
+  const rows = [];
   let totals = { written: 0, skipped: 0, blocked: 0, warningCount: 0 };
   for (const runtime of runtimes) {
-    const r = installOne(runtime, root, opts, convertOptions);
-    totals = {
-      written: totals.written + r.written,
-      skipped: totals.skipped + r.skipped,
-      blocked: totals.blocked + r.blocked,
-      warningCount: totals.warningCount + r.warningCount,
-    };
+    for (const scope of scopesFor()) {
+      const scopedOpts = { ...opts, project: scope === 'project' };
+      const r = installOne(RUNTIME_ALIASES[runtime] || runtime, root, scopedOpts, convertOptions);
+      rows.push({ runtime, scope, ...r });
+      totals = {
+        written: totals.written + r.written,
+        skipped: totals.skipped + r.skipped,
+        blocked: totals.blocked + r.blocked,
+        warningCount: totals.warningCount + r.warningCount,
+      };
+    }
   }
 
+  log('');
+  log(`  ${'Tool'.padEnd(14)}${'Scope'.padEnd(9)}${'Written'.padEnd(9)}${'Unchanged'.padEnd(11)}Left alone`);
+  for (const row of rows) {
+    log(`  ${row.runtime.padEnd(14)}${row.scope.padEnd(9)}${String(row.written).padEnd(9)}${String(row.skipped).padEnd(11)}${row.blocked}`);
+  }
   log('');
   log(`total: ${totals.written} written, ${totals.skipped} unchanged, ${totals.blocked} left alone`);
   if (totals.warningCount) {
@@ -575,4 +725,104 @@ function main(argv) {
   return 0;
 }
 
-process.exitCode = main(process.argv.slice(2));
+async function runWizard(root, fallbackRuntimes) {
+  const { detect } = await import('../adapters/index.mjs');
+  const { homedir } = await import('node:os');
+  const readline = await import('node:readline');
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const ask = (q) => new Promise((resolve) => rl.question(`${q}: `, (a) => resolve(a.trim())));
+  try {
+    const found = detect(homedir());
+    log('');
+    log('AI Agent Toolkit Setup');
+    log('');
+    log('Detected (detection only marks — nothing is installed yet):');
+    found.forEach(({ adapter, detected }, i) => {
+      log(`  ${String(i + 1).padStart(2)}) [${detected ? 'x' : ' '}] ${adapter.displayName.padEnd(22)} ${detected ? 'detected' : ''}`);
+    });
+    log('');
+    log('Select AI coding tools to configure (any number):');
+    log("  Enter numbers (1,3,5), ranges (1-4), 'all', or nothing to keep marks.");
+    const raw = await ask('Select');
+    let picked;
+    if (!raw) {
+      picked = found.filter((f) => f.detected).map((f) => f.adapter.id);
+    } else if (raw.toLowerCase() === 'all') {
+      picked = found.map((f) => f.adapter.id);
+    } else {
+      const nums = new Set();
+      for (const part of raw.split(',')) {
+        const t = part.trim();
+        if (/^\d+-\d+$/.test(t)) {
+          const [a, b] = t.split('-').map(Number);
+          for (let n = a; n <= b; n += 1) nums.add(n);
+        } else if (/^\d+$/.test(t)) {
+          nums.add(Number(t));
+        }
+      }
+      picked = found.filter((_, i) => nums.has(i + 1)).map((f) => f.adapter.id);
+    }
+    if (!picked.length && fallbackRuntimes.length) picked = fallbackRuntimes;
+    if (picked.length) log(`Selected: ${picked.join(', ')}`);
+    else return { runtimes: [], scope: '', components: [] };
+
+    // Scope step: only scopes every selection supports.
+    const { getAdapter } = await import('../adapters/index.mjs');
+    const common = picked
+      .map((id) => getAdapter(id, homedir()).scopes)
+      .reduce((a, b) => a.filter((s) => b.includes(s)));
+    let scope = '';
+    if (common.length === 1) {
+      scope = common[0];
+    } else if (common.length > 1) {
+      const ordered = ['project', 'global', 'both'].filter((s) => common.includes(s));
+      log('');
+      log('Where should the toolkit be installed?');
+      ordered.forEach((s, i) => log(`  ${i + 1}) ${s}`));
+      const choice = await ask('Scope [1]');
+      scope = ordered[Number(choice || '1') - 1] || ordered[0];
+    }
+
+    // Component step: defaults follow each tool's capabilities.
+    const byId = new Map(found.map((f) => [f.adapter.id, f.adapter]));
+    const defaults = new Set();
+    for (const id of picked) {
+      const caps = (byId.get(id) || getAdapter(id, homedir())).capabilities;
+      if (caps.agents || caps.subagents) defaults.add('agents');
+      if (caps.skills) defaults.add('skills');
+    }
+    defaults.add('sast');
+    const all = ['agents', 'skills', 'sast', 'rules'];
+    log('');
+    log('What should be installed (defaults follow capabilities)?');
+    all.forEach((c, i) => log(`  ${i + 1}) [${defaults.has(c) ? 'x' : ' '}] ${c}`));
+    log("  Enter numbers, 'all', or nothing to keep marks.");
+    const craw = await ask('Components');
+    let components;
+    if (!craw) components = [...defaults];
+    else if (craw.toLowerCase() === 'all') components = all;
+    else {
+      const nums = new Set();
+      for (const part of craw.split(',')) {
+        const t = part.trim();
+        if (/^\d+$/.test(t)) nums.add(Number(t));
+      }
+      components = all.filter((_, i) => nums.has(i + 1));
+    }
+    if (components.length) log(`Components: ${components.join(', ')}`);
+    void root;
+    return { runtimes: picked, scope, components };
+  } finally {
+    rl.close();
+  }
+}
+
+main(process.argv.slice(2)).then(
+  (code) => {
+    process.exitCode = typeof code === 'number' ? code : 0;
+  },
+  (error) => {
+    process.stderr.write(`error: ${error.message}\n`);
+    process.exitCode = 1;
+  }
+);

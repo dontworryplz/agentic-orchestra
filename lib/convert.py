@@ -44,7 +44,20 @@ OMP_TO_CLAUDE = {
 }
 
 CLAUDE_MODELS = ["inherit", "sonnet", "opus", "haiku"]
-RUNTIMES = ["omp", "opencode", "claude", "cursor", "codex"]
+RUNTIMES = ["omp", "opencode", "claude", "claude-code", "cursor", "codex",
+            "gemini", "copilot", "qwen", "aider", "amp", "continue", "generic"]
+
+RULES_WRAPPER_IDS = {"gemini", "copilot", "qwen", "aider", "amp", "continue", "generic"}
+
+DISPLAY_NAMES = {
+    "gemini": "Gemini CLI",
+    "copilot": "GitHub Copilot CLI",
+    "qwen": "Qwen Code",
+    "aider": "Aider",
+    "amp": "Amp",
+    "continue": "Continue",
+    "generic": "Generic Agent Skills",
+}
 
 
 def granted_tools(tools_value) -> list[str]:
@@ -167,16 +180,28 @@ def to_codex(_source: str) -> tuple[str, list[str]]:
     raise ValueError("Codex takes skills, not task agents; install with --skills-only")
 
 
+def to_rules_wrapper(source: str, display_name: str) -> tuple[str, list[str]]:
+    """Compatibility-layer fallback for providers with no native agent format."""
+    data, body = _frontmatter_only(source)
+    name = data.get("name", "agent")
+    description = (data.get("description", "") + "\n\n") if data.get("description") else ""
+    return description + body.lstrip("\n"), [
+        f"{name}: rendered as instruction text for {display_name} (no native agent format)"
+    ]
+
+
 def convert(source: str, runtime: str, options: dict | None = None) -> tuple[str, list[str]]:
     options = options or {}
     if runtime == "omp":
         return source, []
     if runtime == "opencode":
         return to_opencode(source, temperature=options.get("temperature", ""), steps=options.get("steps", ""))
-    if runtime == "claude":
+    if runtime in ("claude", "claude-code"):
         return to_claude(source, model=options.get("model", "inherit"))
     if runtime == "cursor":
         return to_cursor(source)
     if runtime == "codex":
         return to_codex(source)
+    if runtime in RULES_WRAPPER_IDS:
+        return to_rules_wrapper(source, DISPLAY_NAMES.get(runtime, runtime))
     raise ValueError(f"unknown runtime '{runtime}' (expected {', '.join(RUNTIMES)})")

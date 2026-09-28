@@ -41,7 +41,7 @@ function assert(cond, message) {
 }
 
 const skillFiles = () => {
-  const dir = path.join(ROOT, 'skills');
+  const dir = path.join(ROOT, 'core', 'skills');
   return readdirSync(dir)
     .filter((d) => readdirSync(path.join(dir, d)).includes('SKILL.md'))
     .map((d) => ({
@@ -52,7 +52,7 @@ const skillFiles = () => {
 };
 
 const agentFiles = () => {
-  const dir = path.join(ROOT, 'agents');
+  const dir = path.join(ROOT, 'core', 'agents');
   return readdirSync(dir)
     .filter((f) => f.endsWith('.md'))
     .map((f) => ({

@@ -30,6 +30,11 @@ AGENTLESS = {"codex": "no verified task-agent format in Codex; skills only"}
 
 
 def resolve_paths(runtime: str, project: bool, cwd: Path, home: Path):
+    # Legacy single-runtime shim: this script serves the original five targets.
+    # Anything else (gemini, copilot, qwen, aider, amp, continue, generic) lives
+    # behind installer/wizard.py, which owns the full provider registry.
+    if runtime == "claude-code":
+        runtime = "claude"
     agent_home = Path(os.environ.get("PI_CODING_AGENT_DIR", home / ".omp" / "agent"))
     if runtime == "omp":
         return (cwd / ".omp" / "agents", cwd / ".omp" / "skills") if project else (agent_home / "agents", home / ".omp" / "skills")
@@ -52,11 +57,11 @@ def ext_for(runtime: str) -> str:
 
 
 def list_agents() -> list[Path]:
-    return sorted((REPO / "agents").glob("*.md"))
+    return sorted((REPO / "core" / "agents").glob("*.md"))
 
 
 def list_skills() -> list[str]:
-    return sorted(d.name for d in (REPO / "skills").iterdir() if d.is_dir() and (d / "SKILL.md").exists())
+    return sorted(d.name for d in (REPO / "core" / "skills").iterdir() if d.is_dir() and (d / "SKILL.md").exists())
 
 
 def write_file(dest: Path, content: str, args, counts: dict) -> None:
@@ -106,7 +111,7 @@ def install_one(runtime: str, args, counts: dict, warnings: list) -> None:
         for name in list_skills():
             if runtime == "cursor":
                 try:
-                    text, _ = convert((REPO / "skills" / name / "SKILL.md").read_text(), "cursor", {})
+                    text, _ = convert((REPO / "core" / "skills" / name / "SKILL.md").read_text(), "cursor", {})
                 except ValueError as e:
                     print(f"  ! conversion failed for skill {name}: {e}", file=sys.stderr)
                     counts["blocked"] += 1
@@ -114,7 +119,7 @@ def install_one(runtime: str, args, counts: dict, warnings: list) -> None:
                 write_file(skills_dir / (name + ext_for(runtime)), text, args, counts)
                 continue
             dest = skills_dir / name
-            src = REPO / "skills" / name
+            src = REPO / "core" / "skills" / name
             if dest.exists() and not args.force:
                 same = sorted(p.name for p in src.iterdir()) == sorted(p.name for p in dest.iterdir()) and all(
                     (src / p.name).read_text() == (dest / p.name).read_text()
@@ -137,8 +142,11 @@ def install_one(runtime: str, args, counts: dict, warnings: list) -> None:
             counts["written"] += 1
 
 
+LEGACY_RUNTIMES = ("omp", "opencode", "claude", "claude-code", "cursor", "codex")
+
+
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="install.py", description="Install agentic-orchestra agents and skills.")
+    ap = argparse.ArgumentParser(prog="install.py", description="Legacy single-runtime installer. For the full provider set, use installer/wizard.py.")
     ap.add_argument("--runtime", action="append", default=[], choices=[*RUNTIMES, "all"])
     ap.add_argument("--project", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
@@ -152,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     if args.show:
-        src = REPO / "agents" / f"{args.show}.md"
+        src = REPO / "core" / "agents" / f"{args.show}.md"
         if not src.exists():
             print(f"error: no agent named '{args.show}'", file=sys.stderr)
             return 1
@@ -166,14 +174,26 @@ def main(argv: list[str] | None = None) -> int:
 
     wanted = args.runtime or []
     if "all" in wanted:
-        runtimes = list(RUNTIMES)
+        runtimes = list(LEGACY_RUNTIMES)
     elif wanted:
         runtimes = wanted
     else:
-        runtimes = [r for r in RUNTIMES
+        runtimes = [r for r in LEGACY_RUNTIMES
                     if resolve_paths(r, args.project, Path.cwd(), Path.home())[0] is not None
                     and (resolve_paths(r, args.project, Path.cwd(), Path.home())[0].exists()
                          or resolve_paths(r, args.project, Path.cwd(), Path.home())[1].exists())] or ["omp"]
+
+    fresh = [r for r in runtimes if r in LEGACY_RUNTIMES]
+    redirected = [r for r in runtimes if r not in LEGACY_RUNTIMES]
+    for r in redirected:
+        print(f"  - {r}: not served by install.py — use installer/wizard.py --target {r}", file=sys.stderr)
+    if not fresh:
+        if redirected:
+            print("nothing installed. The universal wizard covers every provider: installer/wizard.py", file=sys.stderr)
+            return 2
+        runtimes = ["omp"]
+    else:
+        runtimes = fresh
 
     print(f"agentic-orchestra installer\n  repo:   {REPO}\n  scope:  {'project' if args.project else 'user'}")
     print(f"  target: {', '.join(runtimes)}")

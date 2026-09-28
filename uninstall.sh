@@ -103,7 +103,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 note "agents"
-for f in "$REPO_DIR"/agents/*.md; do
+for f in "$REPO_DIR"/core/agents/*.md; do
   [ -e "$f" ] || continue
   base="$(basename "$f")"
 
@@ -121,7 +121,7 @@ done
 note ""
 
 note "skills"
-for d in "$REPO_DIR"/skills/*/; do
+for d in "$REPO_DIR"/core/skills/*/; do
   [ -d "$d" ] || continue
   name="$(basename "$d")"
   dest="$SKILLS_DEST/$name"

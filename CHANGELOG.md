@@ -7,6 +7,34 @@ backward compatible".
 
 ## [Unreleased]
 
+### Added
+
+- **Vendor-neutral core + 12 provider adapters.** `core/agents/` and
+  `core/skills/` are the single source of truth; OMP/OpenCode are now two
+  targets among twelve (OMP, OpenCode, Claude Code, Codex, Cursor, Gemini,
+  Copilot, Qwen, Aider, Amp, Continue, generic fallback). Each provider owns
+  one `adapters/<id>.mjs` module, one `registry/providers.json` entry, and
+  capability flags — no provider-name conditionals anywhere else. Targets
+  without a verified agent format get a labeled rules-wrapper; Codex refuses
+  agents by name; the generic adapter covers unknown CLIs via
+  `.agents/skills/` + `AGENTS.md`.
+- **Universal installer wizard.** `installer/wizard.py` (and
+  `npx agentic-orchestra --wizard`) detects installed CLIs without installing
+  anything, offers multi-select, per-capability scope (project/global/both)
+  and component selection, merges into existing `AGENTS.md`-style files
+  behind markers with backups, and prints a per-tool matrix. Non-interactive
+  via `--yes`, `--target`, `--scope`; `--dry-run` previews.
+  `installer/adapters.py` + `installer/custom.py` persist user-defined
+  providers without source changes.
+- **Canonical `security-reviewer` + full llm-sast-scanner.** The SAST skill
+  ships vendored with all 34 references and Judge verification intact; the new
+  read-only agent runs it as its procedure and renders natively where
+  subagents exist, as a wrapper elsewhere.
+- `lib/validate.mjs`, `lib/detect.mjs`, `core/schema.mjs`,
+  `core/capabilities.mjs`, `docs/providers.md`, `tests/test_installer.py`
+  (detection, multi-provider, merge, idempotency, fallback, generic, SAST,
+  uninstall coverage in isolated HOME dirs).
+
 ### Changed
 
 - **Model family decided: GPT-6 throughout.** The live `config.yml` pinned

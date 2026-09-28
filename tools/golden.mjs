@@ -54,7 +54,7 @@ const FIXTURES = [
 ];
 
 function agentFiles() {
-  const dir = path.join(ROOT, 'agents');
+  const dir = path.join(ROOT, 'core', 'agents');
   return readdirSync(dir)
     .filter((f) => f.endsWith('.md'))
     .sort()

@@ -1,37 +1,50 @@
 # agentic-orchestra
 
-Task-agent definitions and skill procedures for coding-agent runtimes.
+One AI-agent toolkit, every AI coding tool. Canonical agent and skill
+definitions render into whatever each CLI natively consumes.
 
-12 agents. 9 skills. Installs into OMP, OpenCode, Claude Code, Cursor, and
-Codex. Verifies itself: 23 checks, all of which fail when the thing they guard
-breaks.
+13 agents. 10 skills (incl. the full llm-sast-scanner with 34 references).
+12 providers: OMP, OpenCode, Claude Code, Codex, Cursor, Gemini, Copilot,
+Qwen, Aider, Amp, Continue, and a generic Agent Skills fallback. Supported
+tools, capability differences, and the SAST integration are documented in
+`docs/providers.md`.
+
+```bash
+python3 installer/wizard.py        # pick any number of tools, scope, components
+```
 
 ```bash
 npx skills add dontworryplz/agentic-orchestra -g
 ```
 
 ```bash
-npx agentic-orchestra install all
+npx agentic-orchestra --wizard     # same multi-select through the Node CLI
 ```
 
-The first command installs the skills through the standard `skills` CLI. The
-second installs skills plus agent definitions through this package's own CLI,
-which is the only path that covers OMP. Do not use both for the same skill:
-`skills` symlinks by default, `agentic-orchestra` copies.
+The wizard detects installed CLIs (detection only marks, never installs),
+offers project/global/both scopes per capability, and prints a per-tool
+matrix when done. The `skills` CLI installs skills only; the wizard installs
+skills plus agent definitions, and is the only path that covers OMP. Do not
+use both for the same skill: `skills` symlinks by default, the wizard copies.
 
 ## Layout
 
 ```
-agents/          12 task-agent definitions, OMP frontmatter format (source of truth)
-skills/          9 procedures, one SKILL.md each
+core/agents/     13 canonical agent definitions, one file each (source of truth)
+core/skills/     10 procedures, one SKILL.md each (source of truth)
+skills/          discovery mirror of core/skills for `npx skills add`
+.agents/skills/  portable Agent Skills copy consumed by generic-compatible tools
+adapters/        one module per provider: paths, capabilities, render, validate
+registry/        provider registry (add a tool with one entry + tests)
+installer/       universal wizard, capability-driven install, custom providers
 bin/             npx entry point: install, update, drift, uninstall, verify, list, show, doctor
-lib/             conversion, paths, drift detection, Node-side checks
+lib/             conversion, paths, detection, validation, drift, Node-side checks
 tools/           one script per procedure step that rots when done by hand
-tests/           golden conversions, contract evals, install-behaviour evals, live evals
-docs/            architecture, skill reference, troubleshooting, gap manifest
-install.py       dependency-free installer for all runtimes
+tests/           adapter tests, golden conversions, contract and install-behaviour evals
+docs/            providers matrix, architecture, skill reference, troubleshooting
+install.py       legacy single-runtime installer (use installer/wizard.py)
 uninstall.py     removes what was installed; keeps files you edited
-verify.py        the 23 checks
+verify.py        the checks
 ```
 
 ## Agents
@@ -86,17 +99,22 @@ cd agentic-orchestra
 
 | Flag | Effect |
 |---|---|
-| `--runtime omp\|opencode\|claude\|cursor\|codex\|all` | target, default `all` where config exists |
-| `--project` | install into `./.omp`, `./.opencode`, etc. instead of home |
+| `--target <id>` (repeatable) | provider to configure; any number at once |
+| `--scope project\|global\|both` | where to install (only supported scopes offered) |
+| `--components agents,skills,sast,rules` | what to install; defaults follow capabilities |
 | `--dry-run` | print the plan, write nothing |
 | `--force` | overwrite existing files |
-| `--agents-only` / `--skills-only` | install half the package |
+| `--agents-only` / `--skills-only` / `--sast-only` | install one slice |
 | `--temperature N` / `--steps N` | OpenCode knobs, omitted unless given |
 | `--model inherit\|sonnet\|opus\|haiku` | Claude Code field, default `inherit` |
+| `--yes` | non-interactive; detected tools and capability defaults |
 
-Agent files are converted per runtime because the frontmatter schemas differ.
-Skill files are identical everywhere and copied verbatim, except Cursor where
-both agents and skills become `.mdc` rules, and Codex which takes skills only.
+Canonical definitions are rendered per provider because frontmatter schemas
+differ; there is exactly one source of truth and no hand-maintained
+per-provider copies. Skill directories copy verbatim, except Cursor where
+both agents and skills become `.mdc` rules, Codex which takes skills only,
+and the instruction-style CLIs where agents become labeled compatibility
+wrappers (see `docs/providers.md`).
 
 Installed files are never overwritten. A second run skips identical files and
 reports differing ones; `--force` is the only override. Uninstall keeps any

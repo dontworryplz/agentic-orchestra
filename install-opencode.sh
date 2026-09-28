@@ -204,7 +204,7 @@ emit_agent() {
 
 copy_skill() {
   name="$1"
-  src="$REPO_DIR/skills/$name"
+  src="$REPO_DIR/core/skills/$name"
   dest="$SKILLS_DEST/$name"
 
   [ -f "$src/SKILL.md" ] || die "missing skill: $src/SKILL.md"
@@ -231,7 +231,7 @@ copy_skill() {
 
 if [ -n "$SHOW" ]; then
   found=0
-  for f in "$REPO_DIR"/agents/*.md; do
+  for f in "$REPO_DIR"/core/agents/*.md; do
     [ -e "$f" ] || continue
     if [ "$(basename "$f" .md)" = "$SHOW" ]; then
       emit_agent "$f"
@@ -255,7 +255,7 @@ note ""
 
 if [ "$DO_AGENTS" -eq 1 ]; then
   note "agents"
-  for f in "$REPO_DIR"/agents/*.md; do
+  for f in "$REPO_DIR"/core/agents/*.md; do
     [ -e "$f" ] || continue
     convert_agent "$f" "$AGENTS_DEST/$(basename "$f")"
   done
@@ -264,7 +264,7 @@ fi
 
 if [ "$DO_SKILLS" -eq 1 ]; then
   note "skills"
-  for d in "$REPO_DIR"/skills/*/; do
+  for d in "$REPO_DIR"/core/skills/*/; do
     [ -d "$d" ] || continue
     copy_skill "$(basename "$d")"
   done
