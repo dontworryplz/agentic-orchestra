@@ -318,6 +318,29 @@ if [ -n "$(printf '%s' "$orphans" | tr -d ' ')" ]; then
 fi
 [ "$pg_bad" -eq 0 ] && ok "every skill has a Hand off section and is reachable from another skill"
 
+# --- 11b2. The SAST skill is whole and the reviewer routes to it --------------
+# security-review is a first-party skill, not a summary: every references/*.md
+# the SKILL.md names must exist, and security-reviewer must route to it. A
+# reference that 404s mid-audit is a vulnerability class silently skipped.
+# Break it: delete a references file, or drop the skill:// line from the agent.
+note_check "SAST integration is intact"
+sa2_bad=0
+if [ ! -f core/skills/security-review/SKILL.md ]; then
+  bad "core/skills/security-review/SKILL.md is missing"; sa2_bad=1
+else
+  for r in $(grep -ohE 'references/[a-z0-9_]+\.md' core/skills/security-review/SKILL.md | sort -u); do
+    [ -f "core/skills/security-review/$r" ] || { bad "security-review lists $r but the file is missing"; sa2_bad=1; }
+  done
+  nrefs="$(grep -ohE 'references/[a-z0-9_]+\.md' core/skills/security-review/SKILL.md | sort -u | wc -l | tr -d ' ')"
+  [ "$nrefs" -ge 30 ] || { bad "security-review lists only $nrefs references; expected 30+"; sa2_bad=1; }
+fi
+if [ ! -f core/agents/security-reviewer.md ]; then
+  bad "core/agents/security-reviewer.md is missing"; sa2_bad=1
+elif ! grep -q 'skill://security-review' core/agents/security-reviewer.md; then
+  bad "security-reviewer does not route to skill://security-review"; sa2_bad=1
+fi
+[ "$sa2_bad" -eq 0 ] && ok "security-review vendored ($nrefs references resolve) and security-reviewer routes to it"
+
 if [ "$FAST" -eq 1 ]; then
   printf '\n%d checks, %d assertions passed, %d failed (fast mode: smoke tests skipped)\n' "$CHECKS" "$PASS" "$FAIL"
   [ "$FAIL" -eq 0 ] || exit 1
@@ -507,7 +530,7 @@ for f in core/agents/*.md; do
     ./install-$rt.sh --show "$n" >/dev/null 2>&1 || { bad "$rt conversion failed for $n"; conv_bad=1; }
   done
 done
-[ "$conv_bad" -eq 0 ] && ok "10 agents x 2 runtimes convert cleanly"
+[ "$conv_bad" -eq 0 ] && ok "$(ls core/agents/*.md | wc -l | tr -d ' ') agents x 2 runtimes convert cleanly"
 
 # --- 10. Model pins are never silently invented -----------------------------
 # Break it: make an installer emit a model: field derived from the OMP pin.
@@ -585,7 +608,7 @@ smoke_run() {
 }
 
 smoke_run ./install.sh        "$SMOKE/home/.omp/agent/agents" "$SMOKE/home/.omp/skills"
-[ "$smoke_bad" -eq 0 ] && ok "omp: 10 agents, 9 skills, idempotent, refuses to clobber, uninstall is safe"
+[ "$smoke_bad" -eq 0 ] && ok "omp: $EXP_AGENTS agents, $EXP_SKILLS skills, idempotent, refuses to clobber, uninstall is safe"
 
 # opencode + claude write to $HOME/.config and $HOME/.claude
 for rt in opencode claude; do
@@ -598,7 +621,7 @@ for rt in opencode claude; do
     || { bad "install-$rt.sh run 1 failed"; smoke_bad_r=1; }
   [ "$(ls "$adir" 2>/dev/null | wc -l | tr -d ' ')" = "$EXP_AGENTS" ] || { bad "install-$rt.sh agent count wrong"; smoke_bad_r=1; }
   [ "$(ls "$sdir" 2>/dev/null | wc -l | tr -d ' ')" = "$EXP_SKILLS" ] || { bad "install-$rt.sh skill count wrong"; smoke_bad_r=1; }
-  [ "$smoke_bad_r" -eq 0 ] && ok "$rt: 10 agents, 9 skills installed into an isolated HOME"
+  [ "$smoke_bad_r" -eq 0 ] && ok "$rt: $EXP_AGENTS agents, $EXP_SKILLS skills installed into an isolated HOME"
   smoke_bad=$((smoke_bad + smoke_bad_r))
 done
 

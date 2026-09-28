@@ -3,7 +3,7 @@
 One AI-agent toolkit, every AI coding tool. Canonical agent and skill
 definitions render into whatever each CLI natively consumes.
 
-13 agents. 10 skills (incl. the full llm-sast-scanner with 34 references).
+13 agents. 11 skills (incl. the full security-review with 34 references, plus calibrated-judgment).
 12 providers: OMP, OpenCode, Claude Code, Codex, Cursor, Gemini, Copilot,
 Qwen, Aider, Amp, Continue, and a generic Agent Skills fallback. Supported
 tools, capability differences, and the SAST integration are documented in
@@ -32,7 +32,7 @@ use both for the same skill: `skills` symlinks by default, the wizard copies.
 ```
 core/agents/     13 canonical agent definitions, one file each (source of truth)
 core/skills/     10 procedures, one SKILL.md each (source of truth)
-skills/          discovery mirror of core/skills for `npx skills add`
+skills/          symlink to core/skills for `npx skills add` discovery
 .agents/skills/  portable Agent Skills copy consumed by generic-compatible tools
 adapters/        one module per provider: paths, capabilities, render, validate
 registry/        provider registry (add a tool with one entry + tests)

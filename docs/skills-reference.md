@@ -1,6 +1,6 @@
 # Skills reference
 
-## What ships in this repo (10)
+## What ships in this repo (11)
 
 | Skill | What it does | Trigger |
 |---|---|---|
@@ -12,10 +12,11 @@
 | [`executor`](../skills/executor/SKILL.md) | Ownership contract, priority rules, "stop and report" conditions, no-expansion discipline. | When executing an approved, narrowed plan task. |
 | [`verifier`](../skills/verifier/SKILL.md) | Spec clause → falsifying observation; three verdict values, no partial score; nine high-value surfaces. | When checking a spec/requirement/acceptance criterion against the code. |
 | [`refactor-safely`](../skills/refactor-safely/SKILL.md) | Blast radius before editing, risk classification, expand→migrate→narrow, two search methods for "no reference". | For a structural change that preserves behaviour. |
-| [`llm-sast-scanner`](../skills/llm-sast-scanner/SKILL.md) | SAST: source-to-sink taint analysis across 34 vulnerability classes, with per-class references. Vendored MIT with attribution; reviewers route security-sensitive scope to it. |
+| [`security-review`](../skills/security-review/SKILL.md) | First-party SAST: source-to-sink taint analysis across 34 vulnerability classes, per-class references, mandatory Judge verification. Forked from upstream MIT, maintained here; `security-reviewer` runs it as its procedure. |
 | [`graft`](../skills/graft/SKILL.md) | Context from the `graft/` code graph, call traces, blast radius, file API. Preflight verifies the index exists. | Only in a graft-indexed repo, before grep/reading. |
+| [`calibrated-judgment`](../skills/calibrated-judgment/SKILL.md) | First-party typed judgments (choice/score/yes-probability) via Laya (MCP) or Jev (CLI/API), with stated-uncertainty fallback. Probabilities for gates, never prose vibes. | Triage, severity, routing, or any closed-answer decision. |
 
-Every `skill://` reference either resolves to a skill shipped here (10) or is
+Every `skill://` reference either resolves to a skill shipped here (11) or is
 declared as a deliberate gap in [`unresolved-skills.txt`](unresolved-skills.txt)
 (third-party or MCP-bound skills such as `caveman`, `no-ai-slop`,
 `codebase-memory`, `context7-mcp`, `gitnexus-exploring`, `gsd-code-review`).

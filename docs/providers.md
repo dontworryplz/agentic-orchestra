@@ -16,10 +16,32 @@ npx agentic-orchestra --wizard           # same wizard through the Node CLI
 python3 -m unittest tests.test_installer -v   # adapter + merge + SAST tests (isolated HOME)
 ```
 
+## Uninstall
+
+```bash
+python3 installer/uninstall.py --target gemini --scope global   # every scope: project|global|both
+npx agentic-orchestra uninstall amp --scope both --dry-run
+```
+
+Agent and skill files are removed only when they still match what the
+installer wrote (or with `--force`); edited files are reported and kept.
+The rules-file marker block is removed while everything outside the markers
+is preserved — if only our block remains, the file goes with it.
+
 ## Provider matrix
 
 Support levels are stated honestly. Compatibility layers are labeled as such —
 never advertised as native support.
+
+Live-verified on macOS: `~/.gemini/skills/<name>/SKILL.md`,
+`~/.copilot/skills/<name>/SKILL.md` (+`references/`, +`scripts/`),
+`~/.qwen/skills/`, `~/.aider-desk/skills/`, `~/.continue/skills/`,
+`~/.codex/skills/<name>/SKILL.md` all exist with the Agent Skills layout;
+Gemini `settings.json` carries `hooks` + `mcpServers`; Copilot reads
+`mcp-config.json` and `AGENTS.md` custom instructions with `--agent` custom
+agents. Project-side paths follow each tool's documented convention and are
+not live-verified. Cursor and Amp have no install on this machine — their
+rows stay research-based compatibility claims.
 
 | Tool | Detected via | Agents | Skills | SAST | Scope | Level |
 |---|---|---|---|---|---|---|
@@ -81,15 +103,15 @@ No provider-name conditionals outside the adapter. Callers use capabilities.
 
 ## SAST integration
 
-`core/skills/llm-sast-scanner/` vendors the full upstream skill (34
-references, MIT, see `ATTRIBUTION.md`): source→sink taint tracking in two
-passes (sink-first sweep, then source-first trace), business-logic and auth
-analysis, mandatory Judge re-verification, and file:line remediation
-reporting. References load on demand per vulnerability class — never preloaded
-into every prompt.
+`core/skills/security-review/` is a first-party skill (forked from upstream
+MIT, see `ATTRIBUTION.md`) carrying the full SAST procedure: 34 references,
+source→sink taint tracking in two passes (sink-first sweep, then source-first
+trace), business-logic and auth analysis, mandatory Judge re-verification,
+and file:line remediation reporting. References load on demand per
+vulnerability class — never preloaded into every prompt.
 
 `core/agents/security-reviewer.md` is the provider-neutral wrapper. It runs
-`skill://llm-sast-scanner` as its procedure and renders as a native subagent
+`skill://security-review` as its procedure and renders as a native subagent
 where subagents exist, as a skill wrapper where only skills exist, and as a
 rule/instruction block elsewhere. Only `CONFIRMED` and `LIKELY` findings are
 reported; anything else is `NEEDS CONTEXT` or dropped as a false positive

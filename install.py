@@ -39,7 +39,7 @@ def resolve_paths(runtime: str, project: bool, cwd: Path, home: Path):
     if runtime == "omp":
         return (cwd / ".omp" / "agents", cwd / ".omp" / "skills") if project else (agent_home / "agents", home / ".omp" / "skills")
     if runtime == "opencode":
-        return (cwd / ".opencode" / "agent", cwd / ".opencode" / "skill") if project else (
+        return (cwd / ".opencode" / "agent", cwd / ".agents" / "skills") if project else (
             home / ".config" / "opencode" / "agents", home / ".config" / "opencode" / "skills")
     if runtime == "claude":
         return (cwd / ".claude" / "agents", cwd / ".claude" / "skills") if project else (

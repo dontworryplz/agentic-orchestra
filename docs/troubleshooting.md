@@ -154,7 +154,7 @@ ls skills/*/SKILL.md            # every skill directory must hold SKILL.md
 npx skills add dontworryplz/agentic-orchestra- --list
 ```
 
-Output verified for this repo: `Found 9 skills` from the local path, the same
+Output verified for this repo: `Found 11 skills` from the local path, the same
 from the GitHub path (after push). If it finds 0 skills, then the `skills/`
 directory has moved, or one skill directory has no `SKILL.md` — `verify.sh`
 check 13 asserts both.

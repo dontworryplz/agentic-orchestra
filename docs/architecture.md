@@ -27,7 +27,7 @@ openai-codex/gpt-6-sol     →     luna-*          (5 rol)    →    graft
 | Implementation | `core/agents/luna-worker.md` | `openai-codex/gpt-6-luna:max` | + edit, write | code slice with narrowed ownership |
 | Test | `core/agents/luna-tester.md` | `openai-codex/gpt-6-luna:max` | + edit, write | repro, targeted test, produce evidence |
 | Review | `core/agents/luna-reviewer.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, lsp, bash | independent correctness/security gate |
-| Security review | `core/agents/security-reviewer.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, lsp, bash | SAST taint-trace via `skill://llm-sast-scanner`, Judge-verified findings only |
+| Security review | `core/agents/security-reviewer.md` | `openai-codex/gpt-6-luna:max` | read, grep, glob, lsp, bash | SAST taint-trace via `skill://security-review`, Judge-verified findings only |
 | Tier-1 fan-out | `core/agents/luna-coordinator.md` | `openai-codex/gpt-6-luna:max` | read-only + spawns | split a wide question, synthesize answers |
 | Tier-1 seam owner | `core/agents/luna-integrator.md` | `openai-codex/gpt-6-luna:max` | + edit, write + spawns | own the shared interface and file partition |
 | Long-context implementation | `core/agents/space-bunny-worker.md` | `stealth/space-bunny-alpha` | + edit, write | a slice that does not fit one pass (1M) |
@@ -37,7 +37,10 @@ openai-codex/gpt-6-sol     →     luna-*          (5 rol)    →    graft
 | Antigravity review | `core/agents/antigravity-opus-reviewer.md` | `google-antigravity/claude-opus-4-6:high` | read, grep, glob, lsp, bash | second opinion for a high-risk flow (250K) |
 
 All model IDs were verified against `omp models` output (see README
-"Verification").
+"Verification"). Re-verified live on 2026-09-28: `openai-codex/gpt-6-luna`
+and `gpt-6-sol` (272K, `:max` valid), `stealth/space-bunny-alpha` (1M),
+`google-antigravity/gemini-3.8-flash` (1M), `claude-sonnet-4-6` and
+`claude-opus-4-6` (250K) are all present with the pinned effort levels.
 
 ## Routing rule
 
@@ -108,7 +111,7 @@ Three paths read the same `core/agents/` and `core/skills/` source. The
 reason for the decision is scope, not preference:
 
 ```
-                 core/agents/ (13)   core/skills/ (10)
+                 core/agents/ (13)   core/skills/ (11)
                           │                  │
         ┌────────────────┴─────────┬────────┴───────────────┐
         │                          │                        │

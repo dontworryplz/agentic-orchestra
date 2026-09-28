@@ -26,10 +26,16 @@ backward compatible".
   via `--yes`, `--target`, `--scope`; `--dry-run` previews.
   `installer/adapters.py` + `installer/custom.py` persist user-defined
   providers without source changes.
-- **Canonical `security-reviewer` + full llm-sast-scanner.** The SAST skill
+- **Canonical `security-reviewer` + full security-review.** The SAST skill
   ships vendored with all 34 references and Judge verification intact; the new
   read-only agent runs it as its procedure and renders natively where
   subagents exist, as a wrapper elsewhere.
+- **First-party `calibrated-judgment`.** Typed decisions (choice/score/
+  yes-probability) through calibrated judgment models instead of prose vibes:
+  Laya via MCP tools where the harness provides them, Jev via CLI/API where a
+  key is configured, stated-uncertainty self-judge otherwise. Wired into the
+  orchestrator handoff table; the `security-review` Judge step may take a
+  calibrated number without ever replacing the file:line trace.
 - `lib/validate.mjs`, `lib/detect.mjs`, `core/schema.mjs`,
   `core/capabilities.mjs`, `docs/providers.md`, `tests/test_installer.py`
   (detection, multi-provider, merge, idempotency, fallback, generic, SAST,

@@ -84,6 +84,9 @@ def main() -> int:
     check_python_syntax()
     check_procedure_graph()
     check_model_pins()
+    check_project_paths()
+    check_sast_integration()
+    check_registry()
     if not FAST:
         check_converters_agree()
         check_goldens()
@@ -342,6 +345,74 @@ def check_model_pins() -> None:
             bad_any = True
     if not bad_any:
         ok(f"all {count} agent model pins are gpt-6-family or a documented vendor pin")
+
+
+def check_sast_integration() -> None:
+    head("SAST skill is vendored whole and the reviewer routes to it")
+    sast = REPO / "core" / "skills" / "security-review"
+    refs = sast / "references"
+    if not (sast / "SKILL.md").exists():
+        bad("core/skills/security-review/SKILL.md is missing")
+        return
+    if not refs.is_dir():
+        bad("security-review references/ directory is missing")
+        return
+    text = (sast / "SKILL.md").read_text()
+    listed = sorted(set(re.findall(r"references/([a-z0-9_]+\.md)", text)))
+    missing = [r for r in listed if not (refs / r).exists()]
+    if missing:
+        bad(f"security-review references listed but missing: {' '.join(missing)}")
+    if len(listed) < 30:
+        bad(f"security-review lists only {len(listed)} references; the vendored skill carries 30+")
+    reviewer = REPO / "core" / "agents" / "security-reviewer.md"
+    if not reviewer.exists():
+        bad("core/agents/security-reviewer.md is missing")
+    elif "skill://security-review" not in reviewer.read_text():
+        bad("security-reviewer does not route to skill://security-review")
+    if not missing and len(listed) >= 30 and reviewer.exists():
+        ok(f"security-review vendored ({len(listed)} references resolve) and security-reviewer routes to it")
+
+
+def check_registry() -> None:
+    head("every registry provider has an adapter")
+    import json as _json
+
+    try:
+        reg = _json.loads((REPO / "registry" / "providers.json").read_text())
+    except (OSError, ValueError) as e:
+        bad(f"registry/providers.json does not parse: {e}")
+        return
+    ids = [p["id"] for p in reg.get("providers", [])]
+    if len(ids) != len(set(ids)):
+        bad("registry/providers.json lists a duplicate provider id")
+    bad_any = False
+    for pid in ids:
+        mod = {"claude-code": "claude", "continue": "continue"}.get(pid, pid)
+        if not (REPO / "adapters" / f"{mod}.mjs").exists():
+            bad(f"registry id '{pid}' has no adapter module (adapters/{mod}.mjs missing)")
+            bad_any = True
+    required = {"omp", "opencode", "claude-code", "codex", "gemini", "copilot",
+                "cursor", "qwen", "aider", "amp", "continue", "generic"}
+    if not required.issubset(set(ids)):
+        bad(f"registry is missing: {sorted(required - set(ids))}")
+        bad_any = True
+    if not bad_any:
+        ok(f"all {len(ids)} registry providers resolve to adapter modules")
+
+
+def check_project_paths() -> None:
+    head("project install paths agree across installers")
+    text = (REPO / "install-opencode.sh").read_text()
+    py = (REPO / "install.py").read_text()
+    bad_any = False
+    if '$PWD/.agents/skills' not in text:
+        bad("install-opencode.sh project skills dir is not $PWD/.agents/skills")
+        bad_any = True
+    if 'cwd / ".agents" / "skills"' not in py:
+        bad("install.py opencode project skills dir is not cwd/.agents/skills")
+        bad_any = True
+    if not bad_any:
+        ok("bash, python, node, and registry agree on project skills paths")
 
 
 def check_converters_agree() -> None:

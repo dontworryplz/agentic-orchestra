@@ -60,7 +60,10 @@ if [ "$SCOPE" = "user" ]; then
   SKILLS_DEST="$HOME/.config/opencode/skills"
 else
   AGENTS_DEST="$PWD/.opencode/agent"
-  SKILLS_DEST="$PWD/.opencode/skill"
+  # Project skills follow the Agent Skills standard (.agents/skills), matching
+  # lib/paths.mjs, the registry, and the other project-scope targets — not a
+  # parallel .opencode/skill tree that no resolver reads.
+  SKILLS_DEST="$PWD/.agents/skills"
 fi
 
 # --- OMP -> OpenCode tool mapping -------------------------------------------
