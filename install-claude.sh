@@ -97,18 +97,34 @@ emit_agent() {
   name="$(awk '/^name:/{sub(/^name: */,""); print; exit}' "$src")"
   desc="$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$src")"
   omp_model="$(awk '/^model:/{sub(/^model: */,""); print; exit}' "$src")"
-  tools_line="$(awk '/^tools:/{sub(/^tools: */,""); print; exit}' "$src")"
-  spawns="$(awk '/^spawns:/{sub(/^spawns: */,""); print; exit}' "$src")"
+  tools_list="$(awk -f "$REPO_DIR/tools/read-list.awk" "$src" tools)"
+  spawns_list="$(awk -f "$REPO_DIR/tools/read-list.awk" "$src" spawns | tr '\n' ',')"
   body_start="$(awk 'NR>1 && /^---$/{print NR+1; exit}' "$src")"
 
-  if [ -z "$name" ] || [ -z "$tools_line" ] || [ -z "$body_start" ]; then
-    die "$src: cannot parse OMP frontmatter"
+  # Both OMP shapes are read: the comma string this repository ships and the
+  # block list OMP's own bundled agents use. tools/read-list.awk normalizes
+  # either into one item per line. A single-shape parser does not fail here — it
+  # reports an agent with no tools, and the converter renders that as
+  # "everything denied", which is a silent capability loss.
+  if [ -z "$name" ] || [ -z "$tools_list" ] || [ -z "$body_start" ]; then
+    die "$src: cannot parse OMP frontmatter (need name: and a non-empty tools:)"
   fi
 
-  granted="$(printf '%s' "$tools_line" | tr -d ' ')"
-  claude_tools="$(printf '%s\n' "$granted" | tr ',' '\n' | while read -r t; do
+# `read` returns non-zero at EOF even when it has just read a final field that
+# has no trailing newline, and `$(...)` strips trailing newlines. Iterating with
+# a bare `while read -r t` therefore silently drops the LAST tool of every
+# agent — which showed up as an agent that lost exactly one capability, with no
+# error anywhere. The `|| [ -n "$t" ]` guard is what makes the final field count.
+
+  granted=";$(printf '%s' "$tools_list" | tr '\n' ';')"
+  claude_tools="$(printf '%s' "$tools_list" | while read -r t || [ -n "$t" ]; do
     if [ -n "$t" ]; then omp_tool_to_claude "$t"; fi
   done | awk 'NF && !seen[$0]++' | paste -sd, -)"
+  # Report every unmapped tool, not the ones someone remembered. `lsp` had a
+  # dedicated warning while `find` was dropped in silence.
+  dropped_tools="$(printf '%s' "$tools_list" | while read -r t || [ -n "$t" ]; do
+    if [ -n "$t" ] && [ -z "$(omp_tool_to_claude "$t")" ]; then printf '%s ' "$t"; fi
+  done)"
 
   echo "---"
   echo "name: $name"
@@ -120,12 +136,14 @@ emit_agent() {
   echo
   awk -v s="$body_start" 'NR>=s { if (!started && $0 ~ /^[[:space:]]*$/) next; started=1; print }' "$src"
 
-  case ",$granted," in *,lsp,*) warn "$name: OMP tool 'lsp' has no Claude Code equivalent; dropped" ;; esac
+  if [ -n "$(printf '%s' "$dropped_tools" | tr -d ' ')" ]; then
+    warn "$name: dropped unmapped OMP tool(s):$dropped_tools (no Claude Code equivalent)"
+  fi
   if [ -n "$omp_model" ] && [ "$MODEL" = "inherit" ]; then
     warn "$name: dropped OMP model pin '$omp_model' — emitted 'model: inherit'. Pass --model to pin explicitly."
   fi
-  if [ -n "$spawns" ]; then
-    warn "$name: dropped spawns='$spawns' — Claude Code has no nested-spawn equivalent; this agent loses its tier-2 delegation"
+  if [ -n "$spawns_list" ]; then
+    warn "$name: dropped spawns=$spawns_list — Claude Code has no nested-spawn equivalent; this agent loses its tier-2 delegation"
   fi
   return 0
 }

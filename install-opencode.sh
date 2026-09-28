@@ -94,21 +94,26 @@ convert_agent() {
   name="$(awk '/^name:/{sub(/^name: */,""); print; exit}' "$src")"
   desc="$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$src")"
   model="$(awk '/^model:/{sub(/^model: */,""); print; exit}' "$src")"
-  tools_line="$(awk '/^tools:/{sub(/^tools: */,""); print; exit}' "$src")"
-  spawns="$(awk '/^spawns:/{sub(/^spawns: */,""); print; exit}' "$src")"
+  tools_list="$(awk -f "$REPO_DIR/tools/read-list.awk" "$src" tools)"
+  spawns_list="$(awk -f "$REPO_DIR/tools/read-list.awk" "$src" spawns | tr '\n' ',')"
   body_start="$(awk 'NR>1 && /^---$/{print NR+1; exit}' "$src")"
 
-  if [ -z "$name" ] || [ -z "$tools_line" ]; then
-    die "$src: cannot parse OMP frontmatter (need name: and tools:)"
+  if [ -z "$name" ] || [ -z "$tools_list" ]; then
+    die "$src: cannot parse OMP frontmatter (need name: and a non-empty tools:)"
   fi
   if [ -z "$body_start" ]; then
     die "$src: no closing --- delimiter; body not found"
   fi
 
-  granted="$(printf '%s' "$tools_line" | tr -d ' ')"
+  # Both OMP shapes are read: the comma string this repository ships and the
+  # block list OMP's own bundled agents use. tools/read-list.awk normalizes
+  # either into one item per line. A single-shape parser does not fail here — it
+  # reports an agent with no tools, and the converter renders that as
+  # "everything denied", which is a silent capability loss.
+  granted=";$(printf '%s' "$tools_list" | tr '\n' ';')"
   can_write=0
-  case ",$granted," in
-    *,edit,*|*,write,*) can_write=1 ;;
+  case "$granted" in
+    *";edit;"|*";write;") can_write=1 ;;
   esac
 
   if [ "$SHOW" = "$(basename "$src" .md)" ] || [ "$SHOW" = "$name" ]; then
@@ -141,18 +146,35 @@ emit_agent() {
   name="$(awk '/^name:/{sub(/^name: */,""); print; exit}' "$src")"
   desc="$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$src")"
   model="$(awk '/^model:/{sub(/^model: */,""); print; exit}' "$src")"
-  tools_line="$(awk '/^tools:/{sub(/^tools: */,""); print; exit}' "$src")"
-  spawns="$(awk '/^spawns:/{sub(/^spawns: */,""); print; exit}' "$src")"
+  tools_list="$(awk -f "$REPO_DIR/tools/read-list.awk" "$src" tools)"
+  spawns_list="$(awk -f "$REPO_DIR/tools/read-list.awk" "$src" spawns | tr '\n' ',')"
   body_start="$(awk 'NR>1 && /^---$/{print NR+1; exit}' "$src")"
 
-  granted="$(printf '%s' "$tools_line" | tr -d ' ')"
+  # Both OMP shapes are read: the comma string this repository ships and the
+  # block list OMP's own bundled agents use. tools/read-list.awk normalizes
+  # either into one item per line. A single-shape parser does not fail here — it
+  # reports an agent with no tools, and the converter renders that as
+  # "everything denied", which is a silent capability loss.
+  granted=";$(printf '%s' "$tools_list" | tr '\n' ';')"
+
+# `read` returns non-zero at EOF even when it has just read a final field that
+# has no trailing newline, and `$(...)` strips trailing newlines. Iterating with
+# a bare `while read -r t` therefore silently drops the LAST tool of every
+# agent — which showed up as an agent that lost exactly one capability, with no
+# error anywhere. The `|| [ -n "$t" ]` guard is what makes the final field count.
 
   # Collapse OMP tools onto OpenCode tool keys, dedupe, and emit each key exactly
   # once. OMP's web_search and webfetch both land on webfetch, so a naive loop
   # emits that key twice and the later `false` silently wins in YAML.
-  granted_oc="$(printf '%s\n' "$granted" | tr ',' '\n' | while read -r t; do
+  granted_oc="$(printf '%s' "$tools_list" | while read -r t || [ -n "$t" ]; do
     if [ -n "$t" ]; then omp_tool_to_opencode "$t"; fi
   done | sed 's/:.*//' | awk 'NF && !seen[$0]++' | tr '\n' ' ')"
+  # Every unmapped tool is reported, not just the ones someone remembered. A
+  # dedicated warning per tool name is how `lsp` was covered while `find` — also
+  # a real OMP tool, also unmapped — was dropped in silence.
+  dropped_tools="$(printf '%s' "$tools_list" | while read -r t || [ -n "$t" ]; do
+    if [ -n "$t" ] && [ -z "$(omp_tool_to_opencode "$t")" ]; then printf '%s ' "$t"; fi
+  done)"
 
   echo "---"
   printf 'description: "%s"\n' "$(printf '%s' "$desc" | sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -171,7 +193,9 @@ emit_agent() {
   # Body verbatim, minus the blank padding the OMP source carries after frontmatter.
   awk -v s="$body_start" 'NR>=s { if (!started && $0 ~ /^[[:space:]]*$/) next; started=1; print }' "$src"
 
-  case ",$granted," in *,lsp,*) warn "$name: OMP tool 'lsp' has no OpenCode equivalent; dropped" ;; esac
+  if [ -n "$(printf '%s' "$dropped_tools" | tr -d ' ')" ]; then
+    warn "$name: dropped unmapped OMP tool(s):$dropped_tools (no OpenCode equivalent)"
+  fi
   if [ -n "$model" ]; then
     warn "$name: dropped OMP model pin '$model' — set it in OpenCode config, not in the agent file"
   fi

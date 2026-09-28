@@ -252,6 +252,48 @@ else
   fi
 fi
 
+# --- 11d. Conversions match reviewed goldens ---------------------------------
+# Check 12 proves the bash and Node converters agree. Agreement is not
+# correctness: a mapping that is wrong in BOTH implementations passes that check
+# forever. The goldens are the reviewed expectation.
+#
+# Break it: change a tool mapping in lib/convert.mjs. If the change was intended,
+# re-run `node tools/golden.mjs --update` and review the diff.
+note_check "conversions match reviewed goldens"
+if ! command -v node >/dev/null 2>&1; then
+  printf '  SKIP  node not available; cannot run golden tests\n'
+else
+  if ! node tools/golden.mjs; then
+    :
+  fi
+fi
+
+# --- 11e. The shipped frontmatter form is consistent --------------------------
+# OMP accepts two shapes for a list-valued key. The converters now read both, but
+# a repository where half the agents use one form and half the other is a
+# repository nobody can review by eye.
+#
+# Break it: convert one agent to the block-list form.
+note_check "frontmatter form is consistent across agents"
+fm_bad=0
+fm_forms=""
+for f in agents/*.md; do
+  if awk 'NR>1 && /^tools:[[:space:]]*$/{print "list"; exit} NR>1 && /^tools:[[:space:]]*[^[:space:]]/{print "inline"; exit}' "$f" | grep -q .; then
+    form="$(awk 'NR>1 && /^tools:[[:space:]]*$/{print "list"; exit} NR>1 && /^tools:[[:space:]]*[^[:space:]]/{print "inline"; exit}' "$f")"
+    fm_forms="$fm_forms $form"
+  else
+    bad "$(basename "$f") has no tools: value"
+    fm_bad=1
+  fi
+done
+fm_inline="$(printf '%s\n' $fm_forms | grep -c '^inline$' || true)"
+fm_list="$(printf '%s\n' $fm_forms | grep -c '^list$' || true)"
+if [ "$fm_inline" -gt 0 ] && [ "$fm_list" -gt 0 ]; then
+  bad "agents mix both tools: forms ($fm_inline inline, $fm_list block list) — pick one"
+  fm_bad=1
+fi
+[ "$fm_bad" -eq 0 ] && ok "all $(printf '%s\n' $fm_forms | grep -c .) agents use the same tools: form ($([ "$fm_list" -gt 0 ] && echo 'block list' || echo 'inline'))"
+
 # --- 12. The bash and Node converters must agree byte-for-byte ---------------
 # Break it: change a tool mapping in lib/convert.mjs without changing
 # install-opencode.sh (or vice versa). The two implementations exist because the
