@@ -1,5 +1,5 @@
 ---
-name: llm-sast-scanner
+name: security-review
 description: >
   General-purpose Static Application Security Testing (SAST) skill for code vulnerability analysis.
   Trigger when the user asks to: "analyze code for vulnerabilities", "review code security", "find security bugs",
@@ -206,7 +206,7 @@ Beyond taint tracking, check for:
 
 ### Step 5: Judge — Validity Re-Verification
 
-Before reporting, every preliminary finding (VULN or LIKELY VULN) **must pass a Judge review**. The Judge acts as an adversarial second opinion to eliminate false positives.
+Before reporting, every preliminary finding (VULN or LIKELY VULN) **must pass a Judge review**. The Judge acts as an adversarial second opinion to eliminate false positives. Where the verdict is a genuinely bounded question (severity score, reachable-or-not proposition), you may take a calibrated number from `skill://calibrated-judgment` — the number informs the verdict, it never replaces the trace: a CONFIRMED without file:line evidence is still a suspicion.
 
 For each candidate finding, answer all of the following:
 
@@ -400,7 +400,7 @@ When producing a full report, write to `sast_report.md` (or user-specified path)
 ```markdown
 # SAST Security Report — <target>
 Date: <date>
-Analyzer: llm-sast-scanner v1.4
+Analyzer: security-review v1.4
 
 ## Executive Summary
 <2-3 sentences: total findings by severity, most critical issue>
@@ -469,6 +469,17 @@ Report, in this order:
 
 A finding without a path is not a finding. A report without coverage is not
 evidence that the rest is clean.
+
+## Orchestra binding
+
+This skill is a first-party procedure of this orchestra, not an external
+checklist. The dedicated subagent is `security-reviewer`
+(`core/agents/security-reviewer.md`): Sol routes every security-sensitive
+slice to that agent, and the agent runs this skill as its procedure. Do not
+run the taint-trace as the conductor and report the raw output — the agent
+exists so the Judge step stays independent from whoever scoped the work.
+`skill://sol-luna-orchestrator` owns the routing decision; this skill owns
+the trace.
 
 ## Hand off
 

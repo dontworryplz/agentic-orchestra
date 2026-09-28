@@ -41,6 +41,7 @@ all — e.g. a hypothetical `gpt-6-terra` — must never be routed to.
 | Deep independent architecture, security, or correctness review | `luna-reviewer` | `antigravity-opus-reviewer` → Claude Opus 4.6, 250K context · `space-bunny-reviewer` → Space Bunny, 1M context | Second opinion for high-risk flows or contested design. Read-only; evidence-backed blockers must be fixed before delivery. |
 | Slice or review too large for one Luna pass | `space-bunny-worker` / `space-bunny-reviewer` | None needed | Use when the read set does not fit 272K. Escalating to Space Bunny for a small diff wastes budget and adds no signal. |
 | Version-specific research or empirical testing | `luna-researcher` / `luna-tester` | None required by default | Use primary sources and actual execution; do not replace a test with a model opinion. |
+| Security-sensitive slice: auth, secrets, sinks, trust boundaries | `security-reviewer` (mandatory gate, not a second opinion) | None — an optional reviewer does not substitute | Taint-trace via `skill://security-review` with Judge verification; findings without a traced path go back, not into the report. |
 
 Gemini 3.1 Pro (1M context) may be useful for visual/very-long multimodal analysis **only if a matching runtime agent is configured and verified**. The provider list alone does not make it an invocable `task` role. Likewise, Flash-lite, image, older Claude/Gemini, GPT-OSS, and tab-preview entries are not automatically assigned work. Choose by required capability and available agent role, not model count or context size. When an Antigravity provider returns `429 RESOURCE_EXHAUSTED`, report the unavailable slot and use an available qualified role; never fabricate its review.
 
@@ -207,7 +208,8 @@ slice needs, by name, in the assignment:
 | A diff to gate before integration | `skill://review-changes` |
 | Bounded execution inside a plan | `skill://executor` |
 | A code-graph query in an indexed repo | `skill://graft` |
-| A security-sensitive slice: auth, secrets, trust boundaries, sinks | `skill://llm-sast-scanner` for the taint-trace, then an independent review of the remediation |
+| A security-sensitive slice: auth, secrets, trust boundaries, sinks | `skill://security-review` for the taint-trace, then an independent review of the remediation |
+| A bounded decision with a closed answer set (triage, severity, routing) | `skill://calibrated-judgment` for a measured verdict with a probability, then decide on the number, not on prose |
 
 A task assignment that names only files and acceptance criteria leaves each
 subagent to invent its own procedure. That is the most common cause of a

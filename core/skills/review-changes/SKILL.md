@@ -186,7 +186,7 @@ rather than padding.
 
 ## Hand off
 
-| The diff touches auth, secrets, trust boundaries, or user-controlled sinks | `skill://llm-sast-scanner` for the taint-trace procedure before you finalize severity |
+| The diff touches auth, secrets, trust boundaries, or user-controlled sinks | `skill://security-review` for the taint-trace procedure before you finalize severity |
 | Your finding needs | Go to |
 |---|---|
 | Proof that a test would actually catch the bug | `skill://empirical-validation` — the falsification test decides whether the test is a finding or a tautology |

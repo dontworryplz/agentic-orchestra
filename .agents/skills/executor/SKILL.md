@@ -112,7 +112,7 @@ improvise them:
 | Turning your change into evidence before you claim it works | `skill://empirical-validation` — a check that would not fail without your change is not a check |
 | The assignment "reads two ways" and both readings are defensible | `skill://verifier` — it forces the clause into an observation and names which is unobservable |
 | A bug appears inside your slice | `skill://debug-issue` — reproduce before fixing, even under time pressure |
-| A security-relevant boundary appears mid-task | **no shipped skill.** Stop and report; this is already a stop trigger in the table above |
+| A security-relevant boundary appears mid-task | `skill://security-review` — trace it before touching it; a boundary you cannot evidence is a stop-and-report, which is already a stop trigger in the table above |
 | You stopped, and the next move is someone else's decision | `skill://sol-luna-orchestrator` — scope, sequencing, and partition changes are its call, not yours |
 
 The last two rows are deliberate. A gap in the procedure graph is a place to
