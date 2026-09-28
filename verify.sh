@@ -294,6 +294,26 @@ if [ "$fm_inline" -gt 0 ] && [ "$fm_list" -gt 0 ]; then
 fi
 [ "$fm_bad" -eq 0 ] && ok "all $(printf '%s\n' $fm_forms | grep -c .) agents use the same tools: form ($([ "$fm_list" -gt 0 ] && echo 'block list' || echo 'inline'))"
 
+# --- 11f. Skill and agent contracts are declared ------------------------------
+# Every skill states a procedure, something it rejects, and what it returns.
+# Every spawning agent returns the tier-1 envelope. Every writable agent says in
+# prose that it may write, because the frontmatter grant is not the instruction a
+# model reading only the body would see.
+#
+# This eval found four structural gaps when it was written: two skills with no
+# output contract, two with no anti-pattern section, one with no procedure, and
+# three writable agents that never stated their write boundary.
+#
+# Break it: delete an Output contract heading, or a STATUS value.
+note_check "skill and agent contracts are declared"
+if ! command -v node >/dev/null 2>&1; then
+  printf '  SKIP  node not available; cannot run contract evals\n'
+else
+  if ! node tests/evals/contract.mjs; then
+    :
+  fi
+fi
+
 # --- 12. The bash and Node converters must agree byte-for-byte ---------------
 # Break it: change a tool mapping in lib/convert.mjs without changing
 # install-opencode.sh (or vice versa). The two implementations exist because the

@@ -123,6 +123,18 @@ In a multi-repo workspace, graft ranks fairly so the biggest repo can't drown
 the rest, and every hit carries a `[scope/]` label naming its sub-project; when
 you already know where you're working, narrow with `graft ask "<task>" --in <scope>/`.
 
+## Rejected anti-patterns
+
+| Anti-pattern | Why it is rejected |
+|---|---|
+| Re-asking the same question in different words when the first ask was weak | Ranking already ran; a reworded question is not new evidence. Switch surface instead |
+| Searching an over-specific signature, e.g. a full `func (s *Server) Handler` | The index holds symbols, not signatures, so it returns nothing while the code is present. Drop the receiver and retry |
+| Re-opening a file to double-check a generated span | The spans are generated from source and authoritative. The re-read costs a file and adds no evidence |
+| Grepping raw `grep -rn` when `graft grep` was indexed | Slower, unranked, and it throws away the coupling ranking that tells you which hit matters |
+| Skeletoning every file in a directory `map` already named | `map` gives you the hubs; a skeleton of each is the same information at ten times the cost |
+| Treating a `file:line` on disk that the index does not have as real | The index is ahead of your checkout. `graft grep` the symbol to find where it lives now |
+| Re-running `build` after editing, "to be safe" | Every tool already refreshes the graph. The extra build buys nothing |
+
 ## Spend the fewest calls
 - A node's `covers:` list already gives exact `file:line` for every symbol, so
   cite straight from it. The spans are generated from source and authoritative;
@@ -136,6 +148,22 @@ you already know where you're working, narrow with `graft ask "<task>" --in <sco
 - If graft names a path that isn't on disk, its index is ahead of your checkout
   (a branch switch or unpulled move). Don't read the missing file — `graft grep`
   the symbol to find where it lives now, or run `graft build` to refresh.
+
+## Output contract
+
+A graft query is only half the job; the other half is not turning a `file:line`
+into a claim. Return:
+
+1. `ANSWER` — the fact asked for, with the `file:line` span that establishes it.
+2. `SPANS` — the cited `file:line` ranges, verbatim. A node's `covers:` list is
+   authoritative; do not re-read the file to "confirm" it.
+3. `NOT FOUND` — what you searched, the scope you used, and what you ruled out.
+   An honest "not in the index" is a usable answer; a stretched best match is not.
+4. `STALE` — if the index names a path that is not on disk, say so and say where
+   the symbol lives now.
+
+Never report a hit you did not read, and never cite a line range the tool did not
+return.
 
 When the graft MCP server is connected, these are exposed as tools too:
 `graft_find_code`, `graft_find_all`, `graft_file_api`, `graft_trace_calls` (with

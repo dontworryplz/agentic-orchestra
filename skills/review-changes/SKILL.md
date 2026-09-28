@@ -23,6 +23,24 @@ State the base you used in the report. If the change mixes concerns, say so
 before reviewing content — a diff that fixes a bug and reformats a file cannot
 be judged as one unit.
 
+## Procedure
+
+1. Establish the base. See the table above; state it in the report.
+2. Read the diff once, whole, before forming any opinion. A partial read produces
+   findings about code that was not changed.
+3. Walk the priority order top to bottom and stop descending when you run out of
+   material findings. Do not read section 6 until sections 1-5 are clear.
+4. For each candidate finding, run the evidence discipline: exact location,
+   traced path, why the existing guard does not prevent it.
+5. Refute it. A finding that survives its own refutation attempt is ready;
+   one that does not is deleted, not softened.
+6. Assign a severity. If you cannot name the failure mode, it is not a finding.
+7. Check verification quality with the falsification test.
+8. Write the verdict, then the findings, then resolved checks, residual
+   uncertainty, and the commit recommendation.
+9. If you have no material findings, say `PASS` and stop. Padding a clean review
+   trains the reader to skip the next one.
+
 ## Priority order
 
 Review in this order and stop descending once you are out of material findings.

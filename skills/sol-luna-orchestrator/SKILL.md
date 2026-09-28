@@ -44,6 +44,32 @@ Gemini 3.1 Pro (1M context) may be useful for visual/very-long multimodal analys
 
 If project instructions mandate a dedicated `security-reviewer`, run that agent separately. Do not assume its model is Luna or Antigravity without runtime evidence. Such a mandatory gate is not replaced by an optional Opus review.
 
+## Procedure
+
+The conductor's own sequence. Each step has an exit condition, and the order is
+not interchangeable: deciding the interface after fanning out is the mistake this
+list exists to prevent.
+
+1. **Read the live wiring.** `~/.omp/agent/config.yml` and the agent frontmatter.
+   Report observed model IDs; never assert one from memory.
+2. **Scope it yourself first.** One search or read, before any delegation. If the
+   first read answers the question, there is no delegation.
+3. **Decide the interface.** The exact shared signature, the exact file
+   partition, the exact non-goals. Written down, before anyone spawns.
+4. **Check the partition against the working tree.** Dirty or user-owned work in
+   a slice's files is a conflict to resolve now, not after three writes.
+5. **Choose roles by capability, not by availability.** Confirm the role exists
+   and the model resolves. One vendor's 429 means that slot is gone, not that the
+   review happened.
+6. **Delegate only genuinely independent, substantial slices.** One `task` batch,
+   one writer per file, and the runtime's concurrency limit respected.
+7. **Verify at the seam.** Each worker's own check is the worker's. The check that
+   exercises the shared interface is yours, and it is the one that counts.
+8. **Run the gate.** An independent reviewer that did not write the code. Resolve
+   findings; a finding fixed in one slice can break another.
+9. **Report with evidence.** `skill://empirical-validation` applies to you as
+   strictly as to anyone else. What you did not run, say.
+
 ## Delegation
 
 Sol scopes with its own first search/read, decides architecture and exact cross-slice interfaces, then fans out only genuinely independent substantial slices. No delegation for trivial edits, one slice, or a direct question. Use one `task` batch for parallel slices; respect the runtime limit (currently four live subagents). Assign one writer per file/subsystem, preserve dirty/user-owned work, and serialize shared mutation through an integration owner.
@@ -133,6 +159,30 @@ hold:
 If any of the four is uncertain, do not spawn. Answer with one pass, or escalate
 to tier 1 and let it decide.
 
+## Output contract
+
+The conductor is the only role whose report is read by a human, so it carries
+more than the envelope, and it is the one place where a hedged sentence is worse
+than a missing one.
+
+1. `OUTCOME` — one of `shipped`, `shipped with residual risk`, `blocked`,
+   `stopped`. No fifth value.
+2. `WHAT CHANGED` — files and behavior, not a list of commits.
+3. `EVIDENCE` — the commands run, their exit status, and the decisive output.
+   `NONE` if nothing was executed. This is `skill://empirical-validation`'s
+   requirement applied to yourself; a conductor that reports without evidence has
+   no way to tell a working change from a lucky one.
+4. `RESOLVED` — important risks inspected and found sound, so the reader knows
+   what was cleared rather than assumed.
+5. `RESIDUAL` — what is unverified, what was never exercised, and what would
+   detect it. Never empty when the honest answer is "something".
+6. `DECISION REQUEST` — only when `blocked` or `stopped`. One question.
+
+The conductor is the last gate before a human believes something, so the failure
+that matters most is not a wrong answer — it is a confident answer with no
+observation behind it. If you cannot run the check, say which check you did not
+run and what it would have shown.
+
 ## Hand off
 
 Delegation is not the end of the procedure. Route the subagent to the skill its
@@ -152,6 +202,18 @@ slice needs, by name, in the assignment:
 A task assignment that names only files and acceptance criteria leaves each
 subagent to invent its own procedure. That is the most common cause of a
 correct-looking report with no evidence behind it.
+
+## Rejected anti-patterns
+
+| Anti-pattern | Why it is rejected |
+|---|---|
+| Spawning every role because the catalog lists it | A role that runs without a task burns budget and returns noise. Capability and task, not catalog size |
+| Spawning a second vendor for a small diff | A second opinion is a fresh context window. On a small diff it costs a window and returns agreement |
+| Promoting a model because it is listed for a role | A model in a catalog is not an invocable role. Confirm the role exists and the model resolves |
+| Reporting a child ran when the tool result shows otherwise | The only evidence is the tool result. Never narrate an agent you did not observe |
+| Fanning out before fixing the interface | Children that disagree on a contract produce a tree where nobody owns the seam |
+| Treating an optional reviewer as a required security gate | A mandatory gate is a separate agent. An optional second opinion does not substitute |
+| Quoting a 429 as a review | An unavailable slot is an unavailable slot. Report it and use a qualified role |
 
 ## Security gates
 
