@@ -17,7 +17,7 @@ import process from 'node:process';
 
 import { convert } from '../lib/convert.mjs';
 import { parseFrontmatter } from '../lib/frontmatter.mjs';
-import { isRuntimeInstalled, repoRoot, resolvePaths, RUNTIMES } from '../lib/paths.mjs';
+import { AGENTLESS_RUNTIMES, isRuntimeInstalled, repoRoot, resolvePaths, RUNTIMES } from '../lib/paths.mjs';
 import { runChecks } from '../lib/verify.mjs';
 
 const VERSION = '0.3.0';
@@ -169,7 +169,7 @@ function resolveRuntimes(requested, opts) {
 function installOne(runtime, root, opts, convertOptions) {
   const { agents: agentsDir, skills: skillsDir } = resolvePaths(runtime, { project: opts.project });
   log(`\n${runtime}`);
-  log(`  agents: ${agentsDir}`);
+  log(`  agents: ${agentsDir === null ? '(not supported by this runtime)' : agentsDir}`);
   log(`  skills: ${skillsDir}`);
 
   let written = 0;
@@ -177,7 +177,11 @@ function installOne(runtime, root, opts, convertOptions) {
   let blocked = 0;
   let warningCount = 0;
 
-  if (!opts.skillsOnly) {
+  if (agentsDir === null) {
+    // A runtime that cannot hold task agents. Reported, not silently skipped:
+    // "12 agents installed" into a runtime that holds none is a lie.
+    log(`  - agents: not supported (${AGENTLESS_RUNTIMES[runtime] || `${runtime} takes no agents`})`);
+  } else if (!opts.skillsOnly) {
     for (const agent of listAgents(root)) {
       const source = readFileSync(path.join(root, 'agents', agent.file), 'utf8');
       let converted;
@@ -192,8 +196,8 @@ function installOne(runtime, root, opts, convertOptions) {
         warningCount += 1;
         warn(w);
       }
-      const dest = path.join(agentsDir, agent.file);
-      const status = writeFile(dest, converted.text, opts, runtime);
+      const dest = path.join(agentsDir, agent.file.replace(/\.md$/, extFor(runtime)));
+      const status = writeFile(dest, converted.text, opts);
       if (status === 'written') written += 1;
       else if (status === 'skipped') skipped += 1;
       else blocked += 1;
@@ -202,6 +206,26 @@ function installOne(runtime, root, opts, convertOptions) {
 
   if (!opts.agentsOnly) {
     for (const skill of listSkills(root)) {
+      if (runtime === 'cursor') {
+        // A skill is a procedure, which is what a Cursor rule is. Same shape as
+        // an agent rule: the body with the frontmatter stripped.
+        const source = readFileSync(path.join(root, 'skills', skill, 'SKILL.md'), 'utf8');
+        let rule;
+        try {
+          rule = convert(source, 'cursor', {}).text;
+        } catch (error) {
+          // One bad item must not abort the run: the remaining skills would be
+          // silently left uninstalled, and the report would look complete.
+          warn(`conversion failed for skill ${skill}: ${error.message}`);
+          blocked += 1;
+          continue;
+        }
+        const status = writeFile(path.join(skillsDir, `${skill}${extFor(runtime)}`), rule, opts);
+        if (status === 'written') written += 1;
+        else if (status === 'skipped') skipped += 1;
+        else blocked += 1;
+        continue;
+      }
       const dest = path.join(skillsDir, skill);
       const status = copySkill(path.join(root, 'skills', skill), dest, opts);
       if (status === 'written') written += 1;
@@ -212,6 +236,11 @@ function installOne(runtime, root, opts, convertOptions) {
 
   log(`  ${written} written, ${skipped} unchanged, ${blocked} left alone${warningCount ? `, ${warningCount} warning(s)` : ''}`);
   return { written, skipped, blocked, warningCount };
+}
+
+// Cursor reads .mdc rule files; every other target reads .md.
+function extFor(runtime) {
+  return runtime === 'cursor' ? '.mdc' : '.md';
 }
 
 function writeFile(dest, content, opts) {
@@ -268,8 +297,8 @@ function uninstallOne(runtime, root, opts) {
   let kept = 0;
   let absent = 0;
 
-  for (const agent of listAgents(root)) {
-    const dest = path.join(agentsDir, agent.file);
+  for (const agent of agentsDir === null ? [] : listAgents(root)) {
+    const dest = path.join(agentsDir, agent.file.replace(/\.md$/, extFor(runtime)));
     if (!existsSync(dest)) {
       log(`  - ${dest} (absent)`);
       absent += 1;
@@ -297,6 +326,24 @@ function uninstallOne(runtime, root, opts) {
   }
 
   for (const skill of listSkills(root)) {
+    // Cursor wrote this skill as a .mdc rule, not a directory, so looking for the
+    // directory would report nine absent files that are all really there.
+    if (runtime === 'cursor') {
+      const rule = path.join(skillsDir, `${skill}${extFor(runtime)}`);
+      if (!existsSync(rule)) {
+        log(`  - ${rule} (absent)`);
+        absent += 1;
+        continue;
+      }
+      if (opts.dryRun) {
+        log(`  x ${rule} (dry-run)`);
+      } else {
+        rmSync(rule, { force: true });
+        log(`  x ${rule}`);
+      }
+      removed += 1;
+      continue;
+    }
     const dest = path.join(skillsDir, skill);
     if (!existsSync(dest)) {
       log(`  - ${dest} (absent)`);
@@ -376,10 +423,15 @@ function main(argv) {
 
   if (opts.command === 'show') {
     const name = opts.runtimes[0];
-    if (!name) fail('show needs an agent name, e.g. `show luna-worker`');
-    const runtime = opts.model && opts.model !== 'inherit' ? 'claude' : 'opencode';
-    const explicit = argv.includes('--runtime') ? argv[argv.indexOf('--runtime') + 1] : runtime;
-    if (!['omp', 'opencode', 'claude'].includes(explicit)) fail(`unknown runtime '${explicit}'`);
+    if (!name) fail('show needs a name, e.g. `show luna-worker` or `show debug-issue`');
+    // `--runtime` wins; otherwise `--model` implies Claude Code, since that is
+    // the only target it affects.
+    const explicit = argv.includes('--runtime')
+      ? argv[argv.indexOf('--runtime') + 1]
+      : opts.model !== 'inherit'
+        ? 'claude'
+        : 'opencode';
+    if (!RUNTIMES.includes(explicit)) fail(`unknown runtime '${explicit}' (expected ${RUNTIMES.join(', ')})`);
     const file = path.join(root, 'agents', `${name}.md`);
     if (!existsSync(file)) fail(`no agent named '${name}' (try \`list\`)`);
     const result = convert(readFileSync(file, 'utf8'), explicit, {

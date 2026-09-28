@@ -106,7 +106,7 @@ const cli = path.join(ROOT, 'bin', 'agentic-orchestra.mjs');
 if (existsSync(cli)) {
   for (const [name, a] of agents) {
     if (!a.spawns.length) continue;
-    for (const rt of ['opencode', 'claude']) {
+    for (const rt of ['opencode', 'claude', 'cursor']) {
       // spawnSync, not execFileSync: the latter sends a child's stderr to the
       // parent's stderr by default, which floods this report, and on success
       // there is no error object to read stderr from — so a silent conversion
@@ -117,7 +117,13 @@ if (existsSync(cli)) {
       if (/^spawns:/m.test(out)) {
         problems.push(`${rt} output for ${name} kept a spawns field it cannot honour`);
       }
-      if (!/dropped spawns=/.test(err)) {
+      // Either runtime may report the drop in its own words: the agent runtimes
+      // name spawns specifically, and Cursor names every frontmatter field that
+      // did not survive because a .mdc rule has none.
+      const reported = rt === 'cursor'
+        ? /carry no frontmatter/.test(err)
+        : /dropped spawns=/.test(err);
+      if (!reported) {
         problems.push(`${rt} conversion for ${name} dropped spawns without reporting it`);
       }
     }

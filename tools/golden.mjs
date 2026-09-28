@@ -22,7 +22,9 @@ import { convert } from '../lib/convert.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GOLDEN = path.join(ROOT, 'tests', 'golden');
-const RUNTIMES = ['opencode', 'claude'];
+// Codex is absent on purpose: it takes skills, not task agents, so there is
+// nothing to convert. Its refusal is asserted by tests/evals instead.
+const RUNTIMES = ['opencode', 'claude', 'cursor'];
 const UPDATE = process.argv.includes('--update');
 
 // A list-form agent, kept as a fixture rather than a real agent. The two OMP
