@@ -58,19 +58,26 @@ each other:
    - `task.agentModelOverrides` → role-based sub-agent pins
 2. `agents/*.md` frontmatter → the `model:` line of each file
 
-Observed example (measured at install time, `gpt-6`/`gpt-5.6` version drift):
+Resolved 2026-09-28 by decision, not by discovery: the GPT roles run the GPT-6
+family, full stop. The live `config.yml` used to pin `gpt-5.6` while the agent
+files pinned `gpt-6`; the config was moved to `gpt-6` and `verify.sh` check 1c
+fails on any pin outside the `gpt-6-{luna,sol}` families plus the three documented
+vendor pins. The one deliberate exception is
+`vision: openai-codex/gpt-5.6-terra:auto`, because no `gpt-6-terra` exists in the
+provider catalog — pinning a model ID that does not exist would be fabrication.
+Re-check that exception against `omp models` whenever the catalog changes.
 
-| Role | `config.yml` `agentModelOverrides` | agent frontmatter |
-|---|---|---|
-| `luna-explorer` | `openai-codex/gpt-5.6-luna:max` | `openai-codex/gpt-6-luna:max` |
-| `luna-worker` | `openai-codex/gpt-5.6-luna:max` | `openai-codex/gpt-6-luna:max` |
-| `luna-reviewer` | `openai-codex/gpt-5.6-luna:max` | `openai-codex/gpt-6-luna:max` |
-| `space-bunny-*` | *(not defined)* | `stealth/space-bunny-alpha` |
+The repositories where the drift lived, and the state after the move:
 
-Which one wins is up to the runtime, it cannot be predicted. That is why the
-preflight in `skills/sol-luna-orchestrator/SKILL.md` makes it mandatory to
-**read both files before routing**: if the two IDs differ, report both and
-verify which one really runs with a `task` result.
+| Role | `config.yml` before | `config.yml` now | agent frontmatter |
+|---|---|---|---|
+| `luna-*` | `openai-codex/gpt-5.6-luna:max` | `openai-codex/gpt-6-luna:max` | `openai-codex/gpt-6-luna:max` |
+| `space-bunny-*` | *(not defined)* | *(not defined)* | `stealth/space-bunny-alpha` |
+| `vision` | `openai-codex/gpt-5.6-terra:auto` | **unchanged** (no GPT-6 terra) | — |
+
+The preflight in `skills/sol-luna-orchestrator/SKILL.md` still reads both files
+before routing. A decided policy does not replace reading the live wiring; it
+replaces the unresolved disagreement the preflight used to have to report.
 
 ## Concurrency
 

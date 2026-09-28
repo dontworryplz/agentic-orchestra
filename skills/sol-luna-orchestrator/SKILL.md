@@ -14,14 +14,16 @@ that actually decide models:
    `task.agentModelOverrides` (per-role pins for subagents).
 2. The `agents/*.md` frontmatter in this orchestra — each file's `model:` line.
 
-These two can disagree, and the disagreement is the runtime's business, not
-yours to guess at. Report the observed value; never state a model you did not
-read. If a role appears in `agentModelOverrides` with a different ID than its
-agent file, say both and treat the pin as unverified until a real `task` result
-shows which one ran.
+The standing decision is GPT-6 throughout: `gpt-6-luna` for the specialists,
+`gpt-6-sol` expected at the root. Confirm agreement rather than announcing it —
+read both, and report the observed values. If a role's two IDs differ, that is no
+longer "the runtime's business": it is a regression against a decided policy,
+so report both and route nothing for that role until a real `task` result shows
+which one runs.
 
-Confirm a model ID exists before routing to it (`omp models`). A model listed in
-a provider catalog is not an invocable `task` role.
+Confirm a model ID exists before routing to it (`omp models`). A model in the
+catalog is not an invocable `task` role, and an ID that is not in the catalog at
+all — e.g. a hypothetical `gpt-6-terra` — must never be routed to.
 
 ## Model topology
 

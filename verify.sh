@@ -75,6 +75,31 @@ if [ "$nest_bad" -eq 0 ]; then
   ok "agents/ holds files only; skills/ holds SKILL.md files and their own references only"
 fi
 
+# --- 1c. Model pins stay inside the families this package actually uses ---------
+# A standing decision in this repository: GPT roles run on the GPT-6 family, full
+# stop. In 2026-09 the live config pinned gpt-5.6 while the agents pinned gpt-6,
+# and the disagreement sat there unresolved because neither side would give. The
+# decision was made for gpt-6 and the config was moved. This check makes it
+# stick: a future edit that pins gpt-5.6, or a model ID from no known provider,
+# fails here instead of silently reviving the drift.
+#
+# Allowed: openai-codex/gpt-6-{luna,sol} with any effort suffix, the three vendor
+# pins (stealth/space-bunny-alpha, google-antigravity/*), and nothing else.
+# Break it: change one agent's model back to gpt-5.6-luna.
+note_check "model pins stay in their families"
+mpin_bad=0
+for f in agents/*.md; do
+  m="$(awk '/^model:/{sub(/^model: */,""); print; exit}' "$f")"
+  n="$(basename "$f" .md)"
+  case "$m" in
+    "openai-codex/gpt-6-luna"|"openai-codex/gpt-6-luna:"*|"openai-codex/gpt-6-sol"|"openai-codex/gpt-6-sol:"*|    "stealth/space-bunny-alpha"|"google-antigravity/gemini-3.8-flash:"*|    "google-antigravity/claude-opus-4-6:"*|"google-antigravity/claude-sonnet-4-6:"*) : ;;
+    *) bad "$n pins '$m', which is outside the gpt-6 family this package decided on"; mpin_bad=1 ;;
+  esac
+done
+if [ "$mpin_bad" -eq 0 ]; then
+  ok "all $(ls agents/*.md | wc -l | tr -d ' ') agent model pins are gpt-6-family or a documented vendor pin"
+fi
+
 # --- 2. name matches its file/directory name ---------------------------------
 # Break it: rename a file without editing its frontmatter name.
 note_check "name matches location"

@@ -28,9 +28,11 @@ Model pins are defined in two places and they can contradict each other:
 - `~/.omp/agent/config.yml` → `task.agentModelOverrides`
 - `agents/*.md` → frontmatter `model:`
 
-The difference measured at install time: the `luna-*` roles were
-`openai-codex/gpt-5.6-luna:max` in the config, `openai-codex/gpt-6-luna:max` in
-the agent files. **Do not guess** which one is applied:
+This disagreement was settled on 2026-09-28: the GPT roles run GPT-6
+throughout. The `luna-*` roles used to read `openai-codex/gpt-5.6-luna:max` in
+the config against `openai-codex/gpt-6-luna:max` in the agent files; the config
+was moved. If you are seeing a mismatch again, check it the same way — **do not
+guess** which one is applied:
 
 ```bash
 grep -A20 'agentModelOverrides' ~/.omp/agent/config.yml

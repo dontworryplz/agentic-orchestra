@@ -369,17 +369,22 @@ authorisation matrix and the promotion criteria are in
 ## Model configuration
 
 The `model:` lines in the agents are not enough on their own.
-`task.agentModelOverrides` in `~/.omp/agent/config.yml` also applies
-role-based pins and **the two can conflict**. The difference measured during
-installation:
+`task.agentModelOverrides` in `~/.omp/agent/config.yml` also applies role-based
+pins. The standing decision is GPT-6 throughout, and it is settled: the config
+used to pin `gpt-5.6` while the agents pinned `gpt-6`, and the config was moved
+to `gpt-6` on 2026-09-28. The single exception is
+`vision: openai-codex/gpt-5.6-terra:auto` — no `gpt-6-terra` exists in the
+provider catalog.
 
-| Role | `config.yml` | agent frontmatter |
+| Role | `config.yml` now | agent frontmatter |
 |---|---|---|
-| `luna-*` | `openai-codex/gpt-5.6-luna:max` | `openai-codex/gpt-6-luna:max` |
+| `luna-*` | `openai-codex/gpt-6-luna:max` | `openai-codex/gpt-6-luna:max` |
 | `space-bunny-*` | not defined | `stealth/space-bunny-alpha` |
+| `vision` | `openai-codex/gpt-5.6-terra:auto` (exception) | — |
 
-Do not guess which one wins. `docs/architecture.md` has the full account of
-this, `docs/troubleshooting.md` has the diagnostic commands.
+`verify.sh` check 1c fails the build on any pin outside the GPT-6 families.
+`docs/architecture.md` has the full account, `docs/troubleshooting.md` the
+diagnostic commands.
 
 On the OpenCode and Claude Code side the model is determined in the runtime
 config, not in the agent file; this is why the converters do not write a pin.

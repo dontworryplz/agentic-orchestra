@@ -7,6 +7,20 @@ backward compatible".
 
 ## [Unreleased]
 
+### Changed
+
+- **Model family decided: GPT-6 throughout.** The live `config.yml` pinned
+  `gpt-5.6` while the agents pinned `gpt-6`, and the disagreement had been sitting
+  in the documentation as an observed fact nobody acted on. The config moved to
+  `gpt-6-luna` / `gpt-6-sol` with effort suffixes unchanged, and `verify.sh`
+  check 1c now fails on any pin outside the `gpt-6-{luna,sol}` families plus the
+  three documented vendor pins. The single exception is
+  `vision: openai-codex/gpt-5.6-terra:auto`, kept because no `gpt-6-terra` exists
+  in the provider catalog — a model ID that does not exist is not a pin, it is a
+  fabrication. The orchestrator skill preflight changed with the decision: a
+  config/frontmatter disagreement is now reported as a regression, not as a
+  runtime behaviour to live with.
+
 ### Added
 
 - `npx agentic-orchestra update` and `drift`. An installation from 0.2.0 is
