@@ -43,8 +43,12 @@
   },
   "scripts": {
     "verify": "./verify.sh",
+    "verify:node": "node bin/agentic-orchestra.mjs verify",
     "verify:fast": "./verify.sh --fast",
-    "test": "node bin/agentic-orchestra.mjs verify && ./verify.sh"
+    "test": "npm run verify:all",
+    "verify:all": "npm run verify && npm run verify:node && node tests/evals/contract.mjs && node tests/evals/install-behavior.mjs && node tools/golden.mjs && node tools/check-spawn-graph.mjs",
+    "golden:update": "node tools/golden.mjs --update",
+    "eval:live": "node tests/evals/live.mjs --run"
   },
   "engines": {
     "node": ">=18"

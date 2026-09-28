@@ -252,72 +252,40 @@ To see the conversion:
 ### The package verifies itself
 
 ```bash
-./verify.sh            # 15 checks, 17 assertions + isolated-HOME install smoke test
-./verify.sh --fast     # skip the smoke tests (10 checks)
+./verify.sh            # 21 checks + isolated-HOME install smoke test
+./verify.sh --fast     # skip the subprocess work (11 checks)
 ./verify.sh --quiet    # print only errors
+npm run verify:all     # both verify paths, both eval layers, goldens, spawn graph
 ```
 
-Each check turns an invariant written in `AGENTS.md` into an assertion:
+Each check turns an invariant written in `AGENTS.md` into an assertion. This
+table is generated from the `note_check` calls in `verify.sh`, so it cannot drift:
 
 | # | Check | How to break it |
 |---|---|---|
-| 1 | Frontmatter exists | delete a file's leading `---` |
-| 2 | Matches by `name` | rename the file, leave the frontmatter alone |
-| 3 | `skill://` references resolve or a gap is declared | add a fabricated skill name |
-| 4 | Runtime files are in English | add a Turkish sentence to an agent |
-| 5 | A read-only role carries no write permission | add `edit` to a discovery agent |
-| 6 | No placeholders | add `TODO` |
-| 7 | Shell syntax | unbalance the quotes in a script |
-| 8 | No duplicate YAML key in the conversion | map two OMP tools to one OpenCode key, do not dedupe |
-| 9 | Every agent converts into every runtime | give a tool value with no mapping branch |
-| 10 | The model pin is not fabricated | write a `model:` derived from the OMP pin into the converter |
-| 11 | Install smoke test | take the installer out of idempotency |
-| 12 | The bash and Node converters are identical | change a mapping in `lib/convert.mjs`, leave the bash counterpart alone |
-| 13 | `npx skills add` compatibility | rename the `skills/` directory |
-| 14 | The npx entry point is executable | delete the shebang |
-| 15 | The procedure graph is connected | delete a `## Hand off` section |
-| 16 | The nested-spawn graph is safe | make an agent spawn itself, or add a third level |
+| 1 | frontmatter present | mkdir agents/agents and copy a file in |
+| 2 | no nested directories in the runtime folders | rename a file without editing its frontmatter name |
+| 3 | name matches location | add a skill:// line naming a skill that is neither shipped nor |
+| 4 | skill:// references resolve or are declared gaps | write a Turkish sentence into any runtime file, doc, or root |
+| 5 | language is English everywhere | add `edit` to the tools line of any explorer/reviewer |
+| 6 | read-only invariant survives conversion | add "TODO" or a <placeholder> to any shipped file. verify.sh is |
+| 7 | no placeholders | — |
+| 8 | npx skills add compatibility | delete the shebang from bin/agentic-orchestra.mjs, or clear its exec |
+| 9 | npx entry point is executable | introduce an unbalanced quote in any script |
+| 10 | shell syntax | — |
+| 11 | procedure graph is connected | add an agent to its own spawns list, name a role that does not |
+| 12 | nested-spawn graph is safe | change a tool mapping in lib/convert.mjs. If the change was intended, |
+| 13 | conversions match reviewed goldens | convert one agent to the block-list form |
+| 14 | frontmatter form is consistent across agents | delete an Output contract heading, or a STATUS value |
+| 15 | skill and agent contracts are declared | make install copy unconditionally, or let drift treat an unfamiliar |
+| 16 | install behaviour honours its contract | change a tool mapping in lib/convert.mjs without changing |
+| 17 | bash and node converters agree | make omp_tool_to_opencode map two OMP tools onto one OpenCode key |
+| 18 | conversion emits no duplicate YAML keys | give an agent a tools value with no mapping branch; conversion dies |
+| 19 | all agents convert to all runtimes | make an installer emit a model: field derived from the OMP pin |
+| 20 | no invented model pins | make an installer non-idempotent, or let it clobber a modified file |
+| 21 | installer smoke test (isolated HOME) | — |
 
-All checks were verified by mutation testing: each one produces `FAIL` when
-broken. Check 12 genuinely works — on the first run it found that the Node side
-prints `tools: ` (trailing space) while bash prints `tools:`. The Turkish check
-also does not produce false positives on English words like `Compile` or
-`argument`.
-
-`verify.sh` (bash) and `npx agentic-orchestra verify` (Node) check the same
-invariants; the bash side runs all 15 checks, the Node side runs the 11 that do
-not require a shell.
-
-### After installation
-
-```bash
-# OMP
-omp --skills='graft,review-changes' -p "list your available skills"
-omp -p "list your available task agents"
-
-# OpenCode
-opencode run 'list your available agents and skills'
-
-# Are the model IDs valid?
-omp models | grep -E 'gpt-6-luna|gpt-6-sol|space-bunny-alpha|gemini-3.8-flash|opus-4-6|sonnet-4-6'
-```
-
-## Uninstall
-
-```bash
-npx agentic-orchestra uninstall omp --dry-run    # see what would be deleted first
-npx agentic-orchestra uninstall omp              # delete
-
-./uninstall.sh --omp --dry-run                   # same job, through the clone
-```
-
-Files you edited after installing are **not deleted**, they are reported. They
-are deleted with `--force`.
-
-If you installed with `npx skills add`, that CLI has its own path: `skills
-remove`, or remove the symlink from the install directory.
-
-## Keeping an installation current
+## Keeping an installation current## Keeping an installation current
 
 An installation from an older version is silently incomplete. Two agents and a
 spawn grant have been added since 0.2.0, so an install from that release has no

@@ -59,25 +59,37 @@ table in `skills/sol-luna-orchestrator/SKILL.md` are updated.
 
 ## Verification
 
-Run after a change:
+Run everything, not one half of it:
 
 ```bash
-# her şeyi tek komutta doğrula (bash tarafı, 14 kontrol)
-./verify.sh
-
-# frontmatter ayrıştırma + skills referans bütünlüğü
-for f in agents/*.md skills/*/SKILL.md; do
-  head -1 "$f" | grep -q '^---$' || echo "EKSİK FRONTMATTER: $f"
-done
-comm -23 <(grep -ohE 'skill://[a-z0-9-]+' agents/*.md skills/*/SKILL.md \
-             | sed 's|skill://||' | sort -u) <(ls skills | sort)
-
-# kurulum betiği
-bash -n install.sh && ./install.sh --dry-run
-
-# izole bir köke gerçek kurulum
-PI_CODING_AGENT_DIR=/tmp/omp-verify HOME=/tmp/omp-verify-home ./install.sh
+npm run verify:all
 ```
+
+That is `./verify.sh` (21 checks), `node bin/agentic-orchestra.mjs verify`
+(11), both eval layers, the golden comparison, and the spawn-graph check. The two
+verify paths assert overlapping invariants in different ways, and fixing one has
+twice left the other red — most recently when the Cursor spawn warning was added
+to the bash check and not the Node one. A green `./verify.sh` is not a green
+build.
+
+The individual pieces, when you only need one:
+
+```bash
+./verify.sh                          # invariants, converters, evals, install smoke test
+./verify.sh --fast                   # skip the subprocess work
+node bin/agentic-orchestra.mjs verify
+node tests/evals/contract.mjs        # are the contracts declared
+node tests/evals/install-behavior.mjs # update, drift, non-clobber
+node tools/golden.mjs                # conversions vs reviewed goldens
+node tools/golden.mjs --update       # rewrite goldens — then REVIEW the diff
+node tools/check-spawn-graph.mjs     # the nested-spawn graph
+node tests/evals/live.mjs --list     # live evals: what would run, costs tokens
+```
+
+When you change a converter mapping, `--update` the goldens and read the diff
+before committing it. That review is the only thing standing between a mapping
+change and a wrong capability grant, because both converters agreeing is not
+evidence that either is right.
 
 The `comm` output **lists 7 skills today** and that list must match the
 "Status" column of `docs/skills-reference.md` exactly. If **a name you do not
