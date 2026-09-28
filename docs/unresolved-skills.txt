@@ -16,7 +16,6 @@
 caveman           # exists at ~/.agents/skills + ~/.config/opencode/skills; third-party, not vendored here
 codebase-memory   # needs the codebase-memory-mcp server; MCP-backed, not a portable SKILL.md
 context7-mcp      # needs the context7 MCP server; MCP-backed
-eresus-guard      # no local source; security gate procedure, highest-value gap to author
 gitnexus-exploring # needs the gitnexus CLI/index; third-party, not vendored here
 gsd-code-review   # part of the GSD skill cluster; third-party, not vendored here
 no-ai-slop        # installed at ~/.omp/skills but authored elsewhere; third-party, not vendored here

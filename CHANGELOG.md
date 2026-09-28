@@ -166,8 +166,8 @@ backward compatible".
 
 ### Fixed
 
-- `sol-luna-orchestrator` referred to `eresus-autonomous`, `graft`, and
-  `empirical-validation` as bare names, which an agent cannot resolve. Replaced
+- `sol-luna-orchestrator` referred to `graft` and `empirical-validation`
+  (plus a third-party name) as bare names, which an agent cannot resolve. Replaced
   with a concrete pre-delegation gate built on resolvable `skill://` URIs, and
   the section now states plainly that this package ships no security-review
   procedure — a missing procedure is a place to stop, not a place to improvise

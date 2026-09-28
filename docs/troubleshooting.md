@@ -51,7 +51,7 @@ root or the graft MCP server, there is no tool to apply. Moving the skill does
 not move the tool.
 
 Situation observed during install: the `graft` binary was not on PATH and the
-`graft/` index existed in only one repo (`~/eresus-guard`). So on most repos on
+`graft/` index existed in only one graft-indexed repo on that machine. So on most repos on
 this machine the counterpart of this skill is `codebase-memory-mcp`.
 
 Check:

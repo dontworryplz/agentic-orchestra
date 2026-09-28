@@ -66,8 +66,11 @@ for d in agents/*/ ; do
   bad "agents/$(basename "$d")/ is a directory inside agents/ — this duplicates the agent set"
   nest_bad=1
 done
+# `references/` is standard skill layout (upstream skills ship their knowledge
+# bases there); anything else nested inside a skill is a duplicate-in-waiting.
 for d in skills/*/*/ ; do
   [ -d "$d" ] || continue
+  [ "$(basename "$d")" = "references" ] && continue
   bad "$(dirname "$d")/$(basename "$d")/ nests a directory inside a skill"
   nest_bad=1
 done

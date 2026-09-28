@@ -12,10 +12,11 @@
 | [`executor`](../skills/executor/SKILL.md) | Ownership contract, priority rules, "stop and report" conditions, no-expansion discipline. | When executing an approved, narrowed plan task. |
 | [`verifier`](../skills/verifier/SKILL.md) | Spec clause → falsifying observation; three verdict values, no partial score; nine high-value surfaces. | When checking a spec/requirement/acceptance criterion against the code. |
 | [`refactor-safely`](../skills/refactor-safely/SKILL.md) | Blast radius before editing, risk classification, expand→migrate→narrow, two search methods for "no reference". | For a structural change that preserves behaviour. |
+| [`llm-sast-scanner`](../skills/llm-sast-scanner/SKILL.md) | SAST: source-to-sink taint analysis across 34 vulnerability classes, with per-class references. Vendored MIT with attribution; reviewers route security-sensitive scope to it. |
 | [`graft`](../skills/graft/SKILL.md) | Context from the `graft/` code graph, call traces, blast radius, file API. Preflight verifies the index exists. | Only in a graft-indexed repo, before grep/reading. |
 
 The agents make 15 `skill://` references; 9 are here, 6 are declared in
-[`unresolved-skills.txt`](unresolved-skills.txt). `eresus-guard` also passes
+[`unresolved-skills.txt`](unresolved-skills.txt).
 through from the orchestrator skill by plain name (no URI).
 
 ## Procedure graph
@@ -61,7 +62,7 @@ they follow the `skills/<name>/SKILL.md` convention and the CLI discovers them
 directly. Use `npx agentic-orchestra` when you also want the agent definitions
 to come along, or to install into OMP. Details: [README](../README.md#install).
 
-## Declared gaps (7)
+## Declared gaps (6)
 
 `verify.sh` check 3 compares this list against the real reference set and goes
 red on **divergence in both directions**: a reference not in the list, or a
@@ -69,7 +70,6 @@ record that now resolves.
 
 | Skill | Why it is missing | How to close the gap |
 |---|---|---|
-| `eresus-guard` | nowhere at all | **authored.** Security gate procedure; the highest-value gap. |
 | `caveman` | exists under `~/.agents/skills` and `~/.config/opencode/skills` | third party; a symlink instead of vendoring it here |
 | `codebase-memory` | bound to the `codebase-memory-mcp` server | MCP-backed; not a portable `SKILL.md` |
 | `context7-mcp` | bound to the context7 MCP server | MCP-backed |

@@ -19,6 +19,7 @@ import process from 'node:process';
 import { convert } from '../lib/convert.mjs';
 import { parseFrontmatter } from '../lib/frontmatter.mjs';
 import { AGENTLESS_RUNTIMES, isRuntimeInstalled, repoRoot, resolvePaths, RUNTIMES } from '../lib/paths.mjs';
+import { dirMatches as treesEqual } from '../lib/drift.mjs';
 import { driftFor, isClean, summarize } from '../lib/drift.mjs';
 import { runChecks } from '../lib/verify.mjs';
 
@@ -281,12 +282,7 @@ function writeFile(dest, content, opts) {
 
 function copySkill(srcDir, destDir, opts) {
   if (existsSync(destDir) && !opts.force) {
-    if (readdirSync(srcDir).sort().join() === readdirSync(destDir).sort().join()) {
-      const same = readdirSync(srcDir).every((f) => {
-        const a = path.join(srcDir, f);
-        const b = path.join(destDir, f);
-        return existsSync(b) && readFileSync(a, 'utf8') === readFileSync(b, 'utf8');
-      });
+    if (treesEqual(srcDir, destDir)) {
       if (same) {
         log(`  = ${destDir} (identical, skipped)`);
         return 'skipped';
@@ -369,11 +365,7 @@ function uninstallOne(runtime, root, opts) {
     }
     if (!opts.force) {
       const src = path.join(root, 'skills', skill);
-      const same = readdirSync(src).every((f) => {
-        const a = path.join(src, f);
-        const b = path.join(dest, f);
-        return existsSync(b) && readFileSync(a, 'utf8') === readFileSync(b, 'utf8');
-      });
+      const same = treesEqual(src, dest);
       if (!same) {
         log(`  ! ${dest} modified since install — left in place (use --force to remove)`);
         kept += 1;

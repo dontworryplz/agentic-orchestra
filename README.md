@@ -1,419 +1,135 @@
 # agentic-orchestra
 
-[OMP](https://github.com/), an orchestration package for OpenCode and Claude
-Code: **12 task agents + 9 skill procedures + 4 install/uninstall scripts + a
-verification harness**.
+Task-agent definitions and skill procedures for coding-agent runtimes.
 
-The root session (conductor) splits the work into parts, hands each part to a
-single specialist role, then verifies it itself. Specialists do not work on
-their own; each one owns a single responsibility and returns with evidence.
-
-> The trailing hyphen in the repo name is real: `agentic-orchestra-`.
-> The name without it returns 404.
-
-## Contents
-
-```
-agents/                        12 task agents (OMP agent format, source format)
-  luna-explorer.md             discovery       · read-only · 272K
-  luna-researcher.md           research        · read-only · 272K
-  luna-worker.md               implementation · write     · 272K
-  luna-tester.md               test            · write     · 272K · can delegate
-  luna-reviewer.md             review          · read-only · 272K
-  space-bunny-worker.md        implementation · write     · 1M
-  space-bunny-reviewer.md      review          · read-only · 1M
-  antigravity-gemini-explorer.md   discovery   · read-only · 1M
-  antigravity-sonnet-worker.md     implem.     · write     · 250K
-  antigravity-opus-reviewer.md     review      · read-only · 250K
-  luna-coordinator.md          tier-2 fan-out · read-only · 272K · can delegate
-  luna-integrator.md           tier-2 seam owner · write   · 272K · can delegate
-
-skills/                        9 skill procedures (SKILL.md, same across runtimes)
-  sol-luna-orchestrator/       topology, routing table, delegation rules
-  context-fetch/               context check starting from the cheapest sufficient surface
-  debug-issue/                 repro → localize → explain → fix at the root → prove
-  empirical-validation/        evidence ladder, falsification test, rejected evidence
-  review-changes/              diff base, priority order, P0–P3, self-refutation
-  executor/                    ownership contract, stop-and-report conditions
-  verifier/                    spec clause → falsifying observation, 3 decision values
-  refactor-safely/             blast radius, expand/migrate/contract
-  graft/                       context/call/blast-radius queries from the code graph
-
-package.json                   npx entry point (bin: agentic-orchestra) + skill metadata
-bin/agentic-orchestra.mjs      install · uninstall · verify · list · show · doctor
-lib/
-  convert.mjs                  OMP → OpenCode / Claude Code conversion
-  frontmatter.mjs              the YAML subset these files use
-  paths.mjs                    runtime directory resolution
-  verify.mjs                   invariant checks (Node side)
-
-install.sh                     install for OMP (idempotent, never clobbers)
-install-opencode.sh            OMP → OpenCode converter
-install-claude.sh              OMP → Claude Code converter
-uninstall.sh                   removes what was installed; leaves edited files alone
-verify.sh                      21 checks: invariants, converters, evals, install smoke test
-tools/
-  check-spawn-graph.mjs        asserts the nested-spawn graph is acyclic and bounded
-  golden.mjs                   compares every conversion to a reviewed golden
-  read-list.awk                reads both OMP frontmatter shapes for a list value
-tests/
-  golden/                      reviewed expected conversions, one per agent per runtime
-  evals/
-    contract.mjs               static: are the skills' and agents' contracts declared
-    install-behavior.mjs       update, drift, and the non-clobber contract
-    live.mjs                   opt-in: run a real agent, assert it obeyed its contract
-
-docs/
-  architecture.md              layers, roles, model wiring
-  skills-reference.md          which skill exists, which is missing, why
-  unresolved-skills.txt        machine-readable gap list (verify.sh reads it)
-  troubleshooting.md           observed problems and diagnostic commands
-AGENTS.md                      invariants for agents editing this repo
-CHANGELOG.md
-```
-
-## Quick start
-
-If you only want the **skills**, the ecosystem standard is enough:
+12 agents. 9 skills. Installs into OMP, OpenCode, Claude Code, Cursor, and
+Codex. Verifies itself: 23 checks, all of which fail when the thing they guard
+breaks.
 
 ```bash
-npx skills add dontworryplz/agentic-orchestra- -g
+npx skills add dontworryplz/agentic-orchestra -g
 ```
-
-If you want the skills **and the agents** (or you are installing to OMP):
 
 ```bash
 npx agentic-orchestra install all
 ```
 
-Both use the same files; see below for what goes which way.
+The first command installs the skills through the standard `skills` CLI. The
+second installs skills plus agent definitions through this package's own CLI,
+which is the only path that covers OMP. Do not use both for the same skill:
+`skills` symlinks by default, `agentic-orchestra` copies.
 
-## Installation
+## Layout
 
-### Two paths, two scopes
-
-This package carries two things and there are different paths for each:
-
-| | Skills (9) | Agent definitions (10) |
-|---|---|---|
-| `npx skills add` | ✅ | ❌ |
-| `npx agentic-orchestra` | ✅ | ✅ |
-
-**`npx skills add dontworryplz/agentic-orchestra-`**
-
-The [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI — the
-de-facto standard for agent skills (Nutlope/hallmark uses it too; it has no
-installer of its own). It clones the repo, scans the `skills/` directory by
-convention, and installs into the agents you pick. In this repo you do not
-need to do anything extra.
-
-```bash
-npx skills add dontworryplz/agentic-orchestra- --list                    # what is there
-npx skills add dontworryplz/agentic-orchestra- -g -y                     # global, all of it
-npx skills add dontworryplz/agentic-orchestra- -g -y -a opencode claude-code
-npx skills add dontworryplz/agentic-orchestra- -g -y -s debug-issue     # single skill
+```
+agents/          12 task-agent definitions, OMP frontmatter format (source of truth)
+skills/          9 procedures, one SKILL.md each
+bin/             npx entry point: install, update, drift, uninstall, verify, list, show, doctor
+lib/             conversion, paths, drift detection, Node-side checks
+tools/           one script per procedure step that rots when done by hand
+tests/           golden conversions, contract evals, install-behaviour evals, live evals
+docs/            architecture, skill reference, troubleshooting, gap manifest
+install.py       dependency-free installer for all runtimes
+uninstall.py     removes what was installed; keeps files you edited
+verify.py        the 23 checks
 ```
 
-This path covers more than 80 agents (`opencode`, `claude-code`, `codex`,
-`cursor`, `copilot`, `gemini-cli`, …) and sets up a **symlink** by default.
+## Agents
 
-**`npx agentic-orchestra`**
+| Role | File | Reads | Writes | Spawns |
+|---|---|---|---|---|
+| discovery | `luna-explorer` | yes | no | no |
+| research | `luna-researcher` | yes | no | no |
+| implementation | `luna-worker` | yes | owned files only | no |
+| test | `luna-tester` | yes | tests only | explorers, researchers |
+| review | `luna-reviewer` | yes | no | no |
+| tier-2 fan-out | `luna-coordinator` | yes | no | explorers, researchers, one reviewer |
+| tier-2 seam owner | `luna-integrator` | yes | integration points | workers, one reviewer |
+| long-context implementation | `space-bunny-worker` | yes | owned files only | no |
+| long-context review | `space-bunny-reviewer` | yes | no | no |
+| large-read discovery | `antigravity-gemini-explorer` | yes | no | no |
+| parallel slice | `antigravity-sonnet-worker` | yes | owned files only | no |
+| second-opinion review | `antigravity-opus-reviewer` | yes | no | no |
+
+Spawning is a capability grant. An agent without a `spawns` key cannot spawn;
+the runtime reports it as disabled, it does not fail. Leaves stay leaves for
+concrete reasons: a worker that spawns breaks the file partition that makes
+parallel work safe, and a reviewer that spawns is no longer an independent
+gate. The spawn graph is acyclic, at most one hop deep, and `verify.py`
+asserts all of it.
+
+## Skills
+
+Each skill is a procedure with a stated trigger, numbered steps, rejected
+anti-patterns, an output contract, and a handoff section naming the sibling
+procedures it hands off to.
+
+`sol-luna-orchestrator` holds the topology and the routing table.
+`context-fetch` controls what enters the context window, cheapest surface
+first. `debug-issue` runs reproduce to guard, in order, with an exit condition
+per step. `empirical-validation` requires an observation for every claim and
+defines what is not evidence. `review-changes` establishes the diff base first,
+then reports only reachable defects with severity and a fix. `executor` bounds
+one approved task: owned files, stop conditions, no widening. `verifier` turns
+each spec clause into a falsifying observation. `refactor-safely` requires the
+blast radius before the edit and the widen-migrate-narrow sequence.
+`graft` queries a code-graph index where one exists, and says so when none does.
+
+## Install
 
 ```bash
-npx agentic-orchestra                      # install into every runtime found
-npx agentic-orchestra install omp          # OMP only
-npx agentic-orchestra install all --dry-run
-npx agentic-orchestra list                 # 10 agents + 9 skills
-npx agentic-orchestra show luna-worker --runtime opencode
-npx agentic-orchestra doctor               # show runtimes, state, and drift
-npx agentic-orchestra drift                # what is stale, edited, missing, or not ours
-npx agentic-orchestra update               # add what is missing, refresh what is stale
-npx agentic-orchestra verify               # verify the invariants
-npx agentic-orchestra uninstall omp
+git clone https://github.com/dontworryplz/agentic-orchestra.git
+cd agentic-orchestra
+./install.py --dry-run
+./install.py
 ```
-
-This path adds two things:
-
-1. **Agent definitions.** The `skills` standard carries skills; there is no
-   standard way to carry task agents. Here you get 10 roles.
-2. **OMP support.** `omp` is **not** in the agent table of `skills` v1.7.0 —
-   `opencode` and `pi` are there, `omp` is not; the package also does not know
-   `PI_CODING_AGENT_DIR`. OMP's directories are `~/.omp/skills` and
-   `~/.omp/agent/agents`.
-
-**Which one should I pick?**
-
-| Situation | Path |
-|---|---|
-| Skills only, OpenCode/Claude/Codex/Cursor | `npx skills add` |
-| I am using OMP | `npx agentic-orchestra` |
-| I want the agent roles too | `npx agentic-orchestra` |
-| `git clone` + script, version control | `install.sh` |
-
-> **Do not use both paths for the same skill at the same time.** `skills`
-> creates a symlink by default, `agentic-orchestra` copies. If the same skill
-> sits in both places through two different mechanisms, it becomes unclear
-> which one is authoritative. Pick one: either `skills` with `--copy`, or
-> `agentic-orchestra`.
-
-### Installing from the repo (by cloning)
-
-```bash
-git clone https://github.com/dontworryplz/agentic-orchestra-.git
-cd agentic-orchestra-
-
-./install.sh             # OMP
-./install-opencode.sh    # OpenCode
-./install-claude.sh      # Claude Code
-./uninstall.sh --omp     # undo
-```
-
-These four scripts need neither bash nor Node dependencies — for those who do
-not want to use `npx`. All three implement the same contract:
 
 | Flag | Effect |
 |---|---|
-| `--dry-run` | writes nothing, only shows the plan |
-| `--force` | clobbers existing files |
-| `--user` (default) / `--project` | target scope |
-| `--agents-only` / `--skills-only` | installs only part of it |
-| `--show <agent>` | prints the conversion, writes nothing |
-| `--temperature N` / `--steps N` | OpenCode knobs |
-| `--model <inherit\|sonnet\|opus\|haiku>` | Claude Code `model:` field |
+| `--runtime omp\|opencode\|claude\|cursor\|codex\|all` | target, default `all` where config exists |
+| `--project` | install into `./.omp`, `./.opencode`, etc. instead of home |
+| `--dry-run` | print the plan, write nothing |
+| `--force` | overwrite existing files |
+| `--agents-only` / `--skills-only` | install half the package |
+| `--temperature N` / `--steps N` | OpenCode knobs, omitted unless given |
+| `--model inherit\|sonnet\|opus\|haiku` | Claude Code field, default `inherit` |
 
-### Target directories
+Agent files are converted per runtime because the frontmatter schemas differ.
+Skill files are identical everywhere and copied verbatim, except Cursor where
+both agents and skills become `.mdc` rules, and Codex which takes skills only.
 
-| Runtime | Agents | Skills |
-|---|---|---|
-| OMP | `~/.omp/agent/agents/` | `~/.omp/skills/` |
-| OpenCode | `~/.config/opencode/agents/` | `~/.config/opencode/skills/` |
-| Claude Code | `~/.claude/agents/` | `~/.claude/skills/` |
+Installed files are never overwritten. A second run skips identical files and
+reports differing ones; `--force` is the only override. Uninstall keeps any
+file you edited after installation and says so.
 
-With `--project` it installs under `./.omp/`, `./.opencode/`, `./.claude/`
-respectively.
+Model pins are dropped, never translated. OMP pins provider-qualified IDs that
+the other runtimes cannot express, so the pin is reported on stderr instead of
+guessed into the wrong field.
 
-### Why the scripts are idempotent and why they never clobber
-
-They do not install the same file a second time, they skip it silently. If it
-differs, they **do not clobber**, they warn and require `--force`.
-`~/.omp/agent/agents` is not a source, it is a distribution target; an
-installer that crushes your local edits is worse than no installer at all.
-`uninstall.sh` applies the same contract in reverse: it does not delete a file
-you edited after installing, it reports it.
-
-This behavior is a test inside `verify.sh`: install into an isolated HOME, force
-all 19 of them to say "identical, skipped" on the second run, then edit one
-file and force the third run to say "exists and differs" and preserve the file.
-
-### Manual installation
+## Keeping an installation current
 
 ```bash
-AGENTS=~/.omp/agent/agents
-SKILLS=~/.omp/skills
-mkdir -p "$AGENTS" "$SKILLS"
-cp agents/*.md    "$AGENTS"/
-cp -R skills/*/   "$SKILLS/"
+npx agentic-orchestra drift    # current, stale, local, extra, absent, not-ours
+npx agentic-orchestra update   # add missing, refresh stale, never touch local
 ```
-## What the converters do and do not do
 
-`agents/*.md` is in OMP format. When installing into other runtimes:
+The skills directory is shared with other tools. A skill this package did not
+install is reported as not-ours and is never a removal candidate. Only the
+agents directory belongs to this package.
 
-| Field | OMP | OpenCode | Claude Code |
-|---|---|---|---|
-| tools | `tools: read, grep, glob` (comma-separated list) | `tools:` → `read: true` map | `tools: Read,Grep,Glob` (Title-case list) |
-| role | — | `mode: subagent` | — |
-| model | `openai-codex/gpt-6-luna:max` | **dropped** | `inherit` |
-| extra | `read-summarize: false` | `temperature`, `steps` | `effort` |
-
-Two rules that are constraints, not options:
-
-1. **The model pin is never fabricated.** OMP pins in `provider/model:effort`
-   form; OpenCode accepts a short alias (`haiku`), Claude Code accepts a
-   four-value enum (`inherit|sonnet|opus|haiku`). There is no common language.
-   The scripts **drop the OMP pin and report it every time**; on the Claude
-   side they write `inherit`. `verify.sh` enforces this as a separate check.
-2. **Read-only-ness is preserved in conversion.** Every capability not given
-   in the OpenCode output is explicitly written as `false` — including
-   `edit`/`write`/`patch`. A discovery agent gaining write permission through
-   a runtime default would be a silent privilege escalation.
-
-The `lsp` tool has no OpenCode or Claude Code equivalent; it is dropped and
-reported. `web_search` → `webfetch` in OpenCode, `WebSearch` in Claude Code.
-
-To see the conversion:
+## Verify
 
 ```bash
-./install-opencode.sh --show luna-explorer
-./install-claude.sh   --show luna-worker
+./verify.py              # 23 checks
+./verify.py --fast       # skip the subprocess work
+npm run verify:all       # both verify paths, evals, goldens, spawn graph
+node tests/evals/live.mjs --run   # real model, real cost, opt-in only
 ```
 
-## Verification
-
-### The package verifies itself
-
-```bash
-./verify.sh            # 21 checks + isolated-HOME install smoke test
-./verify.sh --fast     # skip the subprocess work (11 checks)
-./verify.sh --quiet    # print only errors
-npm run verify:all     # both verify paths, both eval layers, goldens, spawn graph
-```
-
-Each check turns an invariant written in `AGENTS.md` into an assertion. This
-table is generated from the `note_check` calls in `verify.sh`, so it cannot drift:
-
-| # | Check | How to break it |
-|---|---|---|
-| 1 | frontmatter present | mkdir agents/agents and copy a file in |
-| 2 | no nested directories in the runtime folders | rename a file without editing its frontmatter name |
-| 3 | name matches location | add a skill:// line naming a skill that is neither shipped nor |
-| 4 | skill:// references resolve or are declared gaps | write a Turkish sentence into any runtime file, doc, or root |
-| 5 | language is English everywhere | add `edit` to the tools line of any explorer/reviewer |
-| 6 | read-only invariant survives conversion | add "TODO" or a <placeholder> to any shipped file. verify.sh is |
-| 7 | no placeholders | — |
-| 8 | npx skills add compatibility | delete the shebang from bin/agentic-orchestra.mjs, or clear its exec |
-| 9 | npx entry point is executable | introduce an unbalanced quote in any script |
-| 10 | shell syntax | — |
-| 11 | procedure graph is connected | add an agent to its own spawns list, name a role that does not |
-| 12 | nested-spawn graph is safe | change a tool mapping in lib/convert.mjs. If the change was intended, |
-| 13 | conversions match reviewed goldens | convert one agent to the block-list form |
-| 14 | frontmatter form is consistent across agents | delete an Output contract heading, or a STATUS value |
-| 15 | skill and agent contracts are declared | make install copy unconditionally, or let drift treat an unfamiliar |
-| 16 | install behaviour honours its contract | change a tool mapping in lib/convert.mjs without changing |
-| 17 | bash and node converters agree | make omp_tool_to_opencode map two OMP tools onto one OpenCode key |
-| 18 | conversion emits no duplicate YAML keys | give an agent a tools value with no mapping branch; conversion dies |
-| 19 | all agents convert to all runtimes | make an installer emit a model: field derived from the OMP pin |
-| 20 | no invented model pins | make an installer non-idempotent, or let it clobber a modified file |
-| 21 | installer smoke test (isolated HOME) | — |
-
-## Keeping an installation current## Keeping an installation current
-
-An installation from an older version is silently incomplete. Two agents and a
-spawn grant have been added since 0.2.0, so an install from that release has no
-coordinator, no integrator, and no agent that can delegate — and nothing says so
-until a delegation is attempted.
-
-```bash
-npx agentic-orchestra drift      # what differs, per runtime
-npx agentic-orchestra update     # add missing, refresh stale
-npx agentic-orchestra doctor     # the same summary, inside the environment report
-```
-
-`drift` distinguishes five states, and the distinction is the point:
-
-| State | Meaning | `update` does |
-|---|---|---|
-| `current` | byte-identical to what this version installs | nothing |
-| `stale` | ours, from an older version | refresh |
-| `local` | ours, but you edited it | **nothing** — never without `--force` |
-| `extra` | installed under a name this version no longer ships | remove |
-| `absent` | in this version, not installed | add |
-
-`extra` applies only inside the agents directory, which is this package's
-deployment target. The skills directory is **shared** with other tools, so an
-unfamiliar skill there is reported as `not ours` and is never a removal
-candidate. An earlier version of the drift check reported every unfamiliar skill
-as removed upstream, which on a real machine pointed at hand-installed skills and
-offered to delete them.
-
-`update` reuses the installer's own non-clobbering path rather than writing
-files itself, so the two cannot disagree about what "do not touch your edits"
-means.
-
-## Evals
-
-Three layers, deliberately separated by cost and by what they can prove.
-
-| Layer | Command | Cost | Proves |
-|---|---|---|---|
-| static contracts | `node tests/evals/contract.mjs` | free | the skills' and agents' contracts are declared and self-consistent |
-| install behaviour | `node tests/evals/install-behavior.mjs` | free | install is idempotent, update never clobbers, drift never offers to delete a foreign skill |
-| live contracts | `node tests/evals/live.mjs --run` | one model call per case | an agent actually obeys the contract it declares |
-
-The first two run in `verify.sh` and in CI. The third does not: it needs
-credentials, spends tokens, and its results move with the model, so a red run
-there would say more about the provider than about this repository. It refuses to
-run without `--run`.
-
-The live cases are the ones that matter and the ones that cannot run in CI. One
-of them hands the tester a colleague's claim that "the test suite is green", with
-no repository and no ability to run commands, and fails the response if it
-reports the fix as working. That is the failure the whole harness exists to
-catch, and no static check can catch it.
-
-## Nested delegation (agents that spawn agents)
-
-OMP treats an agent's `spawns` key as a capability grant: an agent without the
-key **cannot spawn at all**. This package draws that line explicitly.
-
-| Tier | Agents | May spawn |
-|---|---|---|
-| 0 | the root session | everything below |
-| 1 | `luna-coordinator`, `luna-integrator`, `luna-tester` | yes, from a whitelist |
-| 2 | the other nine roles | no |
-
-Two constraints keep the three grants defensible: `luna-tester` is the only
-tier-1 agent that writes and both of its children are read-only, so a fan-out
-cannot create a write conflict; and **no reviewer spawns**, because a reviewer
-that delegates is no longer an independent gate.
-
-The tree is two levels deep and never three. `task.maxConcurrency` is 4 per
-level, so the live maximum is `1 + 1 + 3 = 5` agents; a third tier would be
-`1 + 1 + 3 + 9`.
-
-`verify.sh` check 16 asserts the graph: no self-reference, no cycle, only agents
-that exist, at most one spawning hop, and every conversion drops `spawns` and
-says so, since neither OpenCode nor Claude Code can honour it. The full
-authorisation matrix and the promotion criteria are in
-[docs/architecture.md](docs/architecture.md#delegation-tiers).
-
-## Model configuration
-
-The `model:` lines in the agents are not enough on their own.
-`task.agentModelOverrides` in `~/.omp/agent/config.yml` also applies role-based
-pins. The standing decision is GPT-6 throughout, and it is settled: the config
-used to pin `gpt-5.6` while the agents pinned `gpt-6`, and the config was moved
-to `gpt-6` on 2026-09-28. The single exception is
-`vision: openai-codex/gpt-5.6-terra:auto` — no `gpt-6-terra` exists in the
-provider catalog.
-
-| Role | `config.yml` now | agent frontmatter |
-|---|---|---|
-| `luna-*` | `openai-codex/gpt-6-luna:max` | `openai-codex/gpt-6-luna:max` |
-| `space-bunny-*` | not defined | `stealth/space-bunny-alpha` |
-| `vision` | `openai-codex/gpt-5.6-terra:auto` (exception) | — |
-
-`verify.sh` check 1c fails the build on any pin outside the GPT-6 families.
-`docs/architecture.md` has the full account, `docs/troubleshooting.md` the
-diagnostic commands.
-
-On the OpenCode and Claude Code side the model is determined in the runtime
-config, not in the agent file; this is why the converters do not write a pin.
-
-## Known limit: 7 skill gaps
-
-The agents reference 15 skills; 9 of them are here. The remaining 7 are
-**declared** in `docs/unresolved-skills.txt` — `verify.sh` compares that list
-against the real reference set and goes red on any two-sided deviation. Most
-of the gaps depend on a third-party repo or an external MCP server; the single
-real missing one is `eresus-guard`.
-
-## Compatibility note
-
-**The skill standard.** The skills use the `skills/<name>/SKILL.md` convention,
-which is why they are discovered directly by `npx skills add` in this repo
-(verified: local path and GitHub path). No extra configuration needed.
-
-**The agent files.** OMP ↔ OpenCode ↔ Claude Code conversion is **a format
-difference, not an opposition**: all three do the same job, only the frontmatter
-schema differs. That is why the converters exist; use them instead of copying
-by hand.
-
-**Two implementations, one contract.** The bash scripts and the Node CLI are
-two implementations doing the same work: bash is dependency-free for those who
-clone, Node is cross-platform for `npx`. This duplication would be a problem
-if it were not for `verify.sh` check 12, which compares the two **byte-for-byte,
-agent by agent, runtime by runtime**.
+Each check states how to break it. Mutation-tested: file renames, removed
+sections, orphaned skills, fabricated model IDs, third-level spawn chains,
+silently dropped capabilities, and mixed frontmatter forms all fail loudly.
 
 ## License
 
-Boost Software License 1.0 — see [LICENSE](LICENSE).
+Boost Software License 1.0. See `LICENSE`.

@@ -207,6 +207,7 @@ slice needs, by name, in the assignment:
 | A diff to gate before integration | `skill://review-changes` |
 | Bounded execution inside a plan | `skill://executor` |
 | A code-graph query in an indexed repo | `skill://graft` |
+| A security-sensitive slice: auth, secrets, trust boundaries, sinks | `skill://llm-sast-scanner` for the taint-trace, then an independent review of the remediation |
 
 A task assignment that names only files and acceptance criteria leaves each
 subagent to invent its own procedure. That is the most common cause of a
@@ -226,10 +227,9 @@ correct-looking report with no evidence behind it.
 
 ## Security gates
 
-This package ships no security-review procedure, and the antigravity and luna
-reviewer agents reference `skill://eresus-guard`, which resolves to nothing
-here. The declared gaps are listed in `docs/unresolved-skills.txt`; a reference
-to a missing procedure is a **stop-and-report** condition for the subagent, not
+This package ships no security-review procedure. The declared gaps are listed
+in `docs/unresolved-skills.txt`; a reference to a missing procedure is a
+**stop-and-report** condition for the subagent, not
 an invitation to improvise one.
 
 If project instructions mandate a dedicated security review, run it as a
